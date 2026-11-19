@@ -129,7 +129,7 @@ export default function NewslettersPage() {
 
 			<h2 id="welcome-email">Welcome email</h2>
 			<p>
-				Use <LinkApp href="/automations">Automations</LinkApp> to draft a welcome sequence. Drag nodes to arrange them. Click an output dot, then the destination node to connect them. Use Edit on an email to set its subject, sender and content. Simulate the flow with sample tags. Drafts are saved in this browser. Simulation sends no email and does not record analytics.
+				Use <LinkApp href="/automations">Automations</LinkApp> to draft a welcome sequence. Drag nodes to arrange them. Click an output dot, then the destination node to connect them. Click a node to expand its settings below the canvas. For emails, the panel includes the subject, sender and content. Simulate the flow with sample tags. Drafts are saved in this browser. Simulation sends no email and does not record analytics.
 			</p>
 			<p>
 				An email each new subscriber gets when they join, written in the same{" "}

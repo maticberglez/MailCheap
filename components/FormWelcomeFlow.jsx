@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Clock, GitBranch, Grip, Pencil, LogOut, Mail, Repeat, Trash2 } from "lucide-react";
+import { Clock, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2 } from "lucide-react";
 import EditorRich from "@/components/EditorRich";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MAX_FLOW_STEPS, simulateWelcomeFlow } from "@/lib/welcome-flow";
@@ -11,7 +10,7 @@ import { MAX_FLOW_STEPS, simulateWelcomeFlow } from "@/lib/welcome-flow";
 const TYPES = {
 	email: { label: "Email", icon: Mail },
 	delay: { label: "Delay", icon: Clock, field: "Hours" },
-	filter: { label: "Tag split", icon: GitBranch, field: "Contact tag" },
+	filter: { label: "Fork", icon: GitBranch, field: "Contact tag" },
 	repeat: { label: "Repeat twice", icon: Repeat },
 	exit: { label: "Exit", icon: LogOut },
 };
@@ -33,14 +32,13 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const [error, setError] = useState("");
 	const [selectedId, setSelectedId] = useState(null);
 	const [connecting, setConnecting] = useState(null);
-	const [emailId, setEmailId] = useState(null);
 	const [position, setPosition] = useState(null);
 	const drag = useRef(null);
+	const moved = useRef(false);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
-	const editingEmail = flow.nodes.find(({ id }) => id === emailId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const canvasWidth = Math.max(720, ...[...positions.values()].map(({ x }) => x + NODE_WIDTH + 48));
-	const canvasHeight = Math.max(320, ...[...positions.values()].map(({ y }) => y + NODE_HEIGHT + 48));
+	const canvasHeight = Math.max(480, ...[...positions.values()].map(({ y }) => y + NODE_HEIGHT + 48));
 
 	function load() {
 		try {
@@ -65,9 +63,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 
 	function add(type) {
 		const id = crypto.randomUUID();
-		const previous = flow.nodes.at(-1);
-		const nodes = flow.nodes.map((node) => node === previous && node.type !== "exit" && !node.next ? { ...node, next: id } : node);
-		change({ ...flow, nodes: [...nodes, { id, type, value: type === "delay" ? "24" : "", next: "", other: "" }] });
+		change({ ...flow, nodes: [...flow.nodes, { id, type, value: type === "delay" ? "24" : "", next: "", other: "" }] });
 		setSelectedId(id);
 	}
 
@@ -90,29 +86,13 @@ export default function FormWelcomeFlow({ storageKey }) {
 			className={`absolute -right-2 size-4 rounded-full border-2 border-background ${active ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground"} ${key === "next" ? "top-8" : "top-[68px]"}`} />;
 	}
 
-	function connection(node, key, label) {
-		return (
-			<label className="grid gap-1 text-sm">
-				{label}
-				<select className="h-9 rounded-md border bg-background px-2" value={node[key]} onChange={(event) => update(node.id, { [key]: event.target.value })}>
-					<option value="">End flow</option>
-					{flow.nodes.map((item, index) => item.id !== node.id && <option key={item.id} value={item.id}>{index + 1}. {TYPES[item.type].label}</option>)}
-				</select>
-			</label>
-		);
-	}
-
 	return (
 		<div className="space-y-4">
 			<p className="text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
 			{!loaded ? <Button onClick={load}>Open welcome flow draft</Button> : (
 				<>
-					<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
-						<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
-						<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
-						<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
-					</section>
-					<div className="max-h-[65vh] overflow-auto rounded-xl border bg-muted/30">
+					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}</div>
+					<div className="max-h-[70vh] overflow-auto rounded-xl border bg-muted/30">
 						<div className="relative bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px]" style={{ width: canvasWidth, height: canvasHeight }}>
 							<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full">
 								{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
@@ -132,30 +112,32 @@ export default function FormWelcomeFlow({ storageKey }) {
 								return (
 									<article key={node.id} className={`absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
 										<div className="flex items-center gap-2">
-											<button type="button" aria-label={`Select or move step ${index + 1}`} className="touch-none cursor-grab rounded text-muted-foreground active:cursor-grabbing"
-												onClick={() => setSelectedId(node.id)}
+											<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+												onClick={(event) => { if (event.detail === 0 || !moved.current) selectNode(node.id); }}
 												onPointerDown={(event) => {
 													if (event.button !== 0) return;
-													drag.current = { x, y, startX: event.clientX, startY: event.clientY };
+													moved.current = false;
+														drag.current = { x, y, startX: event.clientX, startY: event.clientY };
 													event.currentTarget.setPointerCapture(event.pointerId);
-													setSelectedId(node.id);
 												}}
 												onPointerMove={(event) => {
 													if (!drag.current) return;
 													const { x, y, startX, startY } = drag.current;
+														if (!moved.current && Math.hypot(event.clientX - startX, event.clientY - startY) < 4) return;
+														moved.current = true;
 													setPosition({ id: node.id, x: Math.max(8, x + event.clientX - startX), y: Math.max(8, y + event.clientY - startY) });
 												}}
 												onPointerUp={(event) => {
 													const start = drag.current;
-													if (start) update(node.id, { x: Math.max(8, start.x + event.clientX - start.startX), y: Math.max(8, start.y + event.clientY - start.startY) });
+													if (start && moved.current) update(node.id, { x: Math.max(8, start.x + event.clientX - start.startX), y: Math.max(8, start.y + event.clientY - start.startY) });
 												}}
 												onLostPointerCapture={() => { drag.current = null; setPosition(null); }}
-											><Grip className="size-4" /></button>
-											<button type="button" onClick={() => selectNode(node.id)} className="flex flex-1 items-center gap-1.5 text-left text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</button>
-											{node.type === "email" && <Button variant="ghost" size="sm" onClick={() => setEmailId(node.id)}><Pencil /> Edit</Button>}
+											/>
+											<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
+											{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => selectNode(node.id)}><Pencil /> Edit</Button>}
 										</div>
-										<p className="truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : ""}</p>
-										{node.type === "email" && <dl aria-label="Email analytics" className="grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
+										<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : ""}</p>
+										{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
 											{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
 										</dl>}
 										{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
@@ -180,25 +162,24 @@ export default function FormWelcomeFlow({ storageKey }) {
 							}}><Trash2 /></Button>
 						</div>
 						{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
-						{selectedNode.type !== "exit" && connection(selectedNode, "next", selectedNode.type === "filter" ? "If tag matches" : "Next step")}
-						{selectedNode.type === "filter" && connection(selectedNode, "other", "Otherwise")}
-						{selectedNode.type === "repeat" && connection(selectedNode, "other", "Repeat from")}
+						{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
+							{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
+							{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
+						</div>}
+						{selectedNode.type === "email" && <>
+							<div className="grid gap-3 sm:grid-cols-2">
+								{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
+							</div>
+							<div className="overflow-hidden rounded-lg border">
+								<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
+							</div>
+						</>}
 					</section>}
-					<Dialog open={Boolean(editingEmail)} onOpenChange={(open) => !open && setEmailId(null)}>
-						<DialogContent className="sm:max-w-3xl">
-							<DialogTitle>Edit automation email</DialogTitle>
-							<DialogDescription>Changes save to this browser draft.</DialogDescription>
-							{editingEmail && <>
-								<div className="grid gap-3 sm:grid-cols-2">
-									{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={editingEmail[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(editingEmail.id, { [key]: event.target.value })} /></label>)}
-								</div>
-								<div className="overflow-hidden rounded-lg border">
-									<EditorRich key={editingEmail.id} content={editingEmail.html ?? ""} onChange={(html) => update(editingEmail.id, { html })} minHeight="min-h-64" />
-								</div>
-							</>}
-						</DialogContent>
-					</Dialog>
-					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label }]) => <Button key={type} variant="outline" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>Add {label.toLowerCase()}</Button>)}</div>
+					<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+						<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
+						<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
+						<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
+					</section>
 					<section className="space-y-3 rounded-xl border bg-card p-4">
 						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
 						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
