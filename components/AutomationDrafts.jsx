@@ -55,7 +55,12 @@ function OpenAutomationEmail({ scope, id, draft, nodeId }) {
 
 	function saveBody(html) {
 		try {
-			setMessage(saveAutomationEmail(localStorage, scope, id, nodeId, html) ? "Saved" : "This email node is no longer available.");
+			if (saveAutomationEmail(localStorage, scope, id, nodeId, html)) {
+				window.dispatchEvent(new StorageEvent("storage", { key: automationDraftKey(scope, id) }));
+				setMessage("Saved");
+			} else {
+				setMessage("This email node is no longer available.");
+			}
 		} catch {
 			setMessage("Could not save the email to this browser.");
 		}

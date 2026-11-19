@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
 import { sendAutomationTest } from "@/app/(app)/automations/actions";
 import { renderEmail } from "@/lib/render-email";
@@ -41,7 +41,7 @@ function AddressField({ label, placeholder, options, value, onChange }) {
 	);
 }
 
-function EmailNodePreview({ node, addresses }) {
+function EmailNodePreview({ node, addresses, editHref }) {
 	const [isSending, startSending] = useTransition();
 	const [result, setResult] = useState("");
 	const { html } = renderEmail({
@@ -66,12 +66,15 @@ function EmailNodePreview({ node, addresses }) {
 
 	return (
 		<div className="space-y-2">
-			<div className="overflow-hidden rounded-xl border bg-muted/30">
-				{node.html ? <iframe title="Email preview" sandbox="" tabIndex={-1} inert srcDoc={html} className="pointer-events-none block h-40 w-full bg-white" />
+			<div className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted/30">
+				{node.html ? <iframe title="Email preview" sandbox="" srcDoc={html} className="absolute inset-0 block size-full bg-white" />
 					: <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
 			</div>
-			<Button variant="outline" size="sm" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
-				title={`Send to ${addresses.testRecipient}`} onClick={send}><Mail />{isSending ? "Sending…" : "Send test to me"}</Button>
+			<div className="grid grid-cols-2 gap-2">
+				<Button variant="outline" size="sm" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
+					title={`Send to ${addresses.testRecipient}`} onClick={send}><Mail />{isSending ? "Sending…" : "Send test to me"}</Button>
+				<Button size="sm" asChild><Link href={editHref}><Pencil /> Edit email</Link></Button>
+			</div>
 			{result && <p role="status" className="text-sm text-muted-foreground">{result}</p>}
 		</div>
 	);
@@ -86,8 +89,22 @@ function outputX(node, key) {
 	return key === "next" ? NODE_WIDTH / 3 : NODE_WIDTH * 2 / 3;
 }
 
+function subscribeToDraft(listener) {
+	window.addEventListener("storage", listener);
+	window.addEventListener("pageshow", listener);
+	return () => {
+		window.removeEventListener("storage", listener);
+		window.removeEventListener("pageshow", listener);
+	};
+}
+
 export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, selectedNodeId, addresses }) {
-	const [flow, setFlow] = useState(initialFlow);
+	const stored = useSyncExternalStore(subscribeToDraft, () => {
+		try { return localStorage.getItem(storageKey); } catch { return null; }
+	}, () => null);
+	const flow = useMemo(() => {
+		try { return stored === null ? initialFlow : JSON.parse(stored); } catch { return initialFlow; }
+	}, [stored, initialFlow]);
 	const [tags, setTags] = useState("");
 	const [isSimulationOpen, setIsSimulationOpen] = useState(false);
 	const [result, setResult] = useState(null);
@@ -153,14 +170,28 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		setPan((point) => panWithinFlow(point.x, point.y));
 	}
 
-	function changeZoom(next) {
+	function changeZoom(next, anchor) {
 		if (!viewport.current || drag.current || panDrag.current || wireGesture.current || placement) return;
 		const value = Math.max(0.5, Math.min(1.6, Math.round(next * 100) / 100));
 		const { clientWidth, clientHeight } = viewport.current;
-		const point = zoomCanvasAround(pan, zoom, value, clientWidth / 2, clientHeight / 2);
+		const point = zoomCanvasAround(pan, zoom, value, anchor?.x ?? clientWidth / 2, anchor?.y ?? clientHeight / 2);
 		setZoom(value);
 		setPan(panWithinFlow(point.x, point.y, false, value));
 	}
+
+	const zoomByWheel = useEffectEvent((event) => {
+		event.preventDefault();
+		const bounds = viewport.current.getBoundingClientRect();
+		const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1);
+		changeZoom(zoom * Math.exp(-delta * 0.002), { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+	});
+
+	useEffect(() => {
+		const element = viewport.current;
+		const onWheel = (event) => zoomByWheel(event);
+		element?.addEventListener("wheel", onWheel, { passive: false });
+		return () => element?.removeEventListener("wheel", onWheel);
+	}, []);
 
 	function canvasPoint(clientX, clientY) {
 		const { left, top, width } = canvas.current.getBoundingClientRect();
@@ -209,10 +240,10 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 
 
 	function change(next) {
-		setFlow(next);
 		setResult(null);
 		try {
 			localStorage.setItem(storageKey, JSON.stringify({ ...next, updatedAt: new Date().toISOString() }));
+			window.dispatchEvent(new StorageEvent("storage", { key: storageKey }));
 			setError("");
 		} catch {
 			setError("Could not save this browser draft");
@@ -465,8 +496,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 									<AddressField label="Reply to" placeholder="Use the sender address" options={addresses.replyEmails}
 										value={selectedNode.replyTo ?? ""} onChange={(replyTo) => update(selectedNode.id, { replyTo })} />
 								</div>
-								<EmailNodePreview key={selectedNode.id} node={selectedNode} addresses={addresses} />
-									<Button asChild><Link href={`${editPath}/${selectedNode.id}`}><Pencil /> Edit email</Link></Button>
+								<EmailNodePreview key={selectedNode.id} node={selectedNode} addresses={addresses} editHref={`${editPath}/${selectedNode.id}`} />
 							</>}
 						</section>}
 					</aside>

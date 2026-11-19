@@ -366,7 +366,7 @@ describe("sending through the API", () => {
 		assert.equal(response.status, 200);
 		assert.equal(response.body.sentTo, "automation-test@example.com");
 		assert.equal(sesEmails.length, before + 1);
-		assert.equal(sesEmails.at(-1).subject, "[Test] Welcome aboard");
+		assert.equal(sesEmails.at(-1).subject, "[TEST]: Welcome aboard");
 		assert.match(sesEmails.at(-1).html, /Glad you are here/);
 	});
 

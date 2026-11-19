@@ -35,7 +35,7 @@ test("connections use smooth curves above, below and level with their source", (
 	for (const y of [60, 120, 180]) {
 		const path = flowConnectionPath(100, 120, 180, y);
 		assert.match(path, /^M 100 120 C /);
-		assert.equal(path.match(/ C /g).length, y < 120 ? 2 : 1);
+		assert.equal(path.match(/ C /g).length, y < 120 ? 3 : 1);
 		assert.ok(path.endsWith(`180 ${y}`));
 	}
 });
@@ -58,7 +58,7 @@ test("a later node can connect back to the first node", () => {
 	const flow = { nodes: [{ id: "first", next: "last" }, { id: "last" }] };
 	const linked = connectFlowNodes(flow, "last", "next", "first");
 	assert.deepEqual(simulateWelcomeFlow(linked, []).path.slice(0, 3).map(({ id }) => id), ["first", "last", "first"]);
-	assert.match(flowConnectionPath(176, 320, 176, 32, 28), /L 28 12 C 28/);
+	assert.match(flowConnectionPath(176, 320, 176, 32, 28), /C 28 [^,]+, 28 [^,]+, 28 12 C 28/);
 });
 
 test("an SMS step carries its message and follows its outgoing connection", () => {
@@ -82,7 +82,7 @@ test("starting a connection at an input still saves the wire from output to inpu
 test("reverse connections use the gap between separated cards", () => {
 	const lane = reverseWireLane(446, 142, 240);
 	assert.equal(lane, 414);
-	assert.match(flowConnectionPath(566, 286, 262, 98, lane), /L 414 78 C 414/);
+	assert.match(flowConnectionPath(566, 286, 262, 98, lane), /C 442 [^,]+, 386 [^,]+, 386 78 C 386/);
 	assert.equal(reverseWireLane(142, 142, 240), 114);
 });
 
