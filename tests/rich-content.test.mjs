@@ -4,6 +4,7 @@ import { renderIssueBody } from "../lib/archive-content.js";
 import { cleanRichHtml } from "../lib/clean-html.js";
 import { UNSUBSCRIBE_PLACEHOLDER, hasContent, renderEmail } from "../lib/render-email.js";
 import { getSendProblem } from "../lib/sending-rules.js";
+import { withEmailSections } from "../lib/sections.js";
 import { firstImageUrl } from "../lib/thumbnail.js";
 
 process.env.BETTER_AUTH_SECRET = "test-session-secret-with-at-least-32-characters";
@@ -131,4 +132,12 @@ test("four-column layouts render with no gutters", () => {
 	const html = renderEmail({ format: "rich", html: `<table data-columns=""><tbody><tr>${cells}</tr></tbody></table>` }).html;
 	assert.match(html, /cellpadding="0" cellspacing="0" style="table-layout:fixed;margin:0;border-collapse:collapse;"/);
 	assert.deepEqual([...html.matchAll(/<td valign="top" style="padding:0;"><p>(\w+)<\/p><\/td>/g)].map(([, text]) => text), ["One", "Two", "Three", "Four"]);
+});
+
+test("email sections use independent light and dark backgrounds", () => {
+	const section = '<section data-section="" data-light-bg="#abcdef" data-dark-bg="#123456"><p>Styled section</p></section>';
+	const email = renderEmail({ format: "rich", html: withEmailSections(section) }).html;
+	assert.match(email, /class="section-bg-123456" style="background-color:#abcdef;"><p>Styled section/);
+	assert.match(email, /prefers-color-scheme: dark\)\{\.section-bg-123456\{background-color:#123456 !important/);
+	assert.doesNotMatch(withEmailSections(section.replace("data-section", 'data-where="web" data-section')), /Styled section/);
 });

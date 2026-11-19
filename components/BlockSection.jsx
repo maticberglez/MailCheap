@@ -130,6 +130,17 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 							editor.commands.focus();
 						}}
 					>
+						<div className="flex gap-3 px-3 pt-3">
+							{["light", "dark"].map((mode) => (
+								<div key={mode} className="grid gap-1 text-xs">
+									<label className="flex items-center gap-1.5">
+										{mode === "light" ? "Light background" : "Dark background"}
+										<input type="color" value={node.attrs[mode] ?? (mode === "light" ? "#ffffff" : "#18181b")} onChange={(event) => updateAttributes({ [mode]: event.target.value })} />
+									</label>
+									{node.attrs[mode] && <button type="button" className="underline" onClick={() => updateAttributes({ [mode]: null })}>Clear</button>}
+								</div>
+							))}
+						</div>
 						<SettingsSection rule={rule} isDeleted={isDeleted} onChange={change} onAddOpposite={addOpposite} onRemove={remove} />
 					</PopoverContent>
 				</Popover>
@@ -352,6 +363,8 @@ export const Section = Node.create({
 			show: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-show") },
 			hide: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-hide") },
 			where: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-where") },
+			light: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-light-bg") },
+			dark: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-dark-bg") },
 			isNew: { default: false, rendered: false, parseHTML: () => false },
 		};
 	},
@@ -361,9 +374,9 @@ export const Section = Node.create({
 	},
 
 	renderHTML({ node }) {
-		const { show, hide, where } = node.attrs;
+		const { show, hide, where, light, dark } = node.attrs;
 		const attributes = { "data-section": "", ...(show !== null && { "data-show": show }), ...(hide !== null && { "data-hide": hide }) };
-		return ["section", { ...attributes, ...(where !== null && { "data-where": where }) }, 0];
+		return ["section", { ...attributes, ...(where !== null && { "data-where": where }), "data-light-bg": light, "data-dark-bg": dark }, 0];
 	},
 
 	addNodeView() {

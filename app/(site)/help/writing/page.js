@@ -346,6 +346,7 @@ export default function WritingPage() {
 			</p>
 
 			<p>Set Reply to in Write to send replies for this campaign to a different address. Leave it empty to use the usual author or newsletter address.</p>
+			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
 			<h2 id="preview">Preview and test emails</h2>
 			<p>
 				Preview, in the write step and in the <strong>⋯</strong> menu at any step, shows the email in a mail app&apos;s window on a
