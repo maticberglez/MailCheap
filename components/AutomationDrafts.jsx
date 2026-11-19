@@ -36,10 +36,11 @@ function OpenDraft({ scope, id }) {
 		}
 	});
 	return (
-		<div className="min-w-0 space-y-2 py-2">
-			<div className="flex items-center gap-2 px-3">
+		<div data-automation-editor="" className="min-w-0">
+			<div className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
 				<Button asChild variant="ghost" size="icon" aria-label="Back to automations"><Link href="/automations"><ArrowLeft /></Link></Button>
 				<h1 className="truncate text-xl font-semibold">{saved?.name ?? "Automation unavailable"}</h1>
+				{saved && <BadgeStatus status="draft" />}
 			</div>
 			{saved ? <FormWelcomeFlow storageKey={automationDraftKey(scope, id)} initialFlow={saved.flow} /> : <p className="px-3 text-sm text-muted-foreground">This draft could not be opened in this browser.</p>}
 		</div>

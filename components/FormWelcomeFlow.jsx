@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Clock, Copy, Focus, GitBranch, Pencil, LogOut, Mail, MessageSquare, Repeat, Trash2, X } from "lucide-react";
+import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, MessageSquare, Repeat, Trash2, X } from "lucide-react";
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
@@ -33,6 +33,7 @@ function outputX(node, key) {
 export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 	const [flow, setFlow] = useState(initialFlow);
 	const [tags, setTags] = useState("");
+	const [isSimulationOpen, setIsSimulationOpen] = useState(false);
 	const [result, setResult] = useState(null);
 	const [error, setError] = useState("");
 	const [selectedId, setSelectedId] = useState(null);
@@ -67,7 +68,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 		const bottom = Math.max(...points.map((point) => point.y + NODE_HEIGHT));
 		const constrain = elastic ? resistCanvasPan : (value, min, max) => Math.max(min, Math.min(max, value));
 		return {
-			x: constrain(x, Math.min(56 - left, clientWidth - right) - PAN_MARGIN, -left + PAN_MARGIN),
+			x: constrain(x, Math.min(56 - left, clientWidth - right) - PAN_MARGIN, Math.max(-left, (clientWidth - NODE_WIDTH) / 2 - points[0].x) + PAN_MARGIN),
 			y: constrain(y, Math.min(32 - top, clientHeight - bottom) - PAN_MARGIN, -top + PAN_MARGIN),
 		};
 	}
@@ -96,7 +97,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 
 	function revealNode({ x, y }) {
 		if (!viewport.current) return;
-		setPan({ x: Math.min(56, Math.max(12, (viewport.current.clientWidth - NODE_WIDTH) / 2)) - x, y: 32 - y });
+		setPan({ x: (viewport.current.clientWidth - NODE_WIDTH) / 2 - x, y: 32 - y });
 	}
 
 	function startMove(event, id, x, y) {
@@ -252,7 +253,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 	}
 
 	return (
-		<div className="space-y-4" onKeyDown={(event) => {
+		<div className="relative" onKeyDown={(event) => {
 			if (event.key === "Escape" && (placement || connecting)) {
 				setPlacement(null);
 				setConnecting(null);
@@ -263,15 +264,25 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 			event.preventDefault();
 			setDeleteId(selectedNode.id);
 		}}>
-			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no messages.</p>
-			<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
-				<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
-			</div>
-			<div className="grid min-w-0 border-y transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,1fr)_var(--node-settings-width)]" style={{ "--node-settings-width": selectedNode ? "min(32rem, 42%)" : "0px" }}>
-				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
+			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[auto_minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
+				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
+				<div role="toolbar" aria-label="Automation tools" className="flex min-h-0 flex-col items-stretch gap-1.5 overflow-y-auto p-1.5 sm:p-3">
+					{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
+						<Button key={type} variant="outline" size="sm" className="justify-start" title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
+							<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
+						</Button>
+					))}
+					<Button variant="outline" size="sm" className="justify-start" title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
+						<Focus aria-hidden="true" /><span className="hidden sm:inline">Back to start</span>
+					</Button>
+					<Button variant="outline" size="sm" className="justify-start" title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
+						<Play aria-hidden="true" /><span className="hidden sm:inline">Simulate</span>
+					</Button>
+				</div>
+				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
 					onPointerDown={(event) => {
-						if (placement && event.button === 0) place(placementPoint(event.clientX, event.clientY));
+						if (placement && event.target === event.currentTarget && event.button === 0) place(placementPoint(event.clientX, event.clientY));
 						else startPan(event);
 					}}
 					onPointerMove={(event) => {
@@ -329,57 +340,64 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 						</div>}
 						{!flow.nodes.length && !placement && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
 					</div>
+					{placement && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">
+						Click the canvas to place the node.
+						<Button variant="outline" size="sm" onClick={() => place({ x: placement.x, y: placement.y })}>Place node</Button>
+						<Button variant="ghost" size="sm" onClick={() => setPlacement(null)}>Cancel</Button>
+					</div>}
+					{connecting && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">Select {connecting.key === "input" ? "an output dot" : "an input dot"}. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
 				</div>
-				<aside aria-label="Node settings" inert={!selectedNode} aria-hidden={!selectedNode}
-					className={`min-w-0 overflow-y-auto bg-card lg:h-[calc(100dvh-7rem)] ${selectedNode ? "border-t lg:border-t-0 lg:border-l" : "hidden lg:block"}`}>
-					{selectedNode && <section className="space-y-3 p-4">
-						<div className="flex items-center gap-1">
-							<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
-							<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
-							<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
-						</div>
-						{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
-						{selectedNode.type === "sms" && <label className="grid gap-1 text-sm">
-							Message
-							<textarea className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm"
-								value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} />
-						</label>}
-						{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
-							{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
-							{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
-						</div>}
-						{selectedNode.type === "email" && <>
-							<div className="grid gap-3 sm:grid-cols-2">
-								{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
+				<div className={`col-span-2 min-h-0 min-w-0 overflow-hidden lg:col-span-1 ${selectedNode ? "block" : "hidden lg:block"}`} inert={!selectedNode}>
+					<aside aria-label="Node settings" aria-hidden={!selectedNode}
+						className={`m-2 max-h-[40dvh] min-w-0 overflow-y-auto rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none sm:m-3 lg:max-h-[calc(100%_-_1.5rem)] ${selectedNode ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
+						{selectedNode && <section className="space-y-3 p-4">
+							<div className="flex items-center gap-1">
+								<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
+								<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
+								<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
 							</div>
-							<div className="overflow-hidden rounded-lg border">
-								<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
-							</div>
-						</>}
-					</section>}
-				</aside>
+							{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
+							{selectedNode.type === "sms" && <label className="grid gap-1 text-sm">
+								Message
+								<textarea className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm"
+									value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} />
+							</label>}
+							{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
+								{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
+								{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
+							</div>}
+							{selectedNode.type === "email" && <>
+								<div className="grid gap-3 sm:grid-cols-2">
+									{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
+								</div>
+								<div className="overflow-hidden rounded-lg border">
+									<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
+								</div>
+							</>}
+						</section>}
+					</aside>
+				</div>
 			</div>
-			{placement && <div role="status" className="flex items-center gap-2 px-3 text-sm">
-				Click the canvas to place the node.
-				<Button variant="outline" size="sm" onClick={() => place({ x: placement.x, y: placement.y })}>Place node</Button>
-				<Button variant="ghost" size="sm" onClick={() => setPlacement(null)}>Cancel</Button>
-			</div>}
-			{connecting && <div role="status" className="flex items-center gap-2 text-sm">Select {connecting.key === "input" ? "an output dot" : "an input dot"}. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
-			<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
-				<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
-				<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
-				<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
-			</section>
-			<section className="space-y-3 rounded-xl border bg-card p-4">
-				<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
-				<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
-				{result && <div aria-live="polite" className="space-y-2 text-sm">
-					<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
-					<p>{result.reason}</p>
-				</div>}
-			</section>
 
-
+			<Dialog open={isSimulationOpen} onOpenChange={setIsSimulationOpen}>
+				<DialogContent className="sm:max-w-lg">
+					<DialogTitle>Simulate flow</DialogTitle>
+					<DialogDescription>Try the flow with sample contact tags. Simulation sends no messages.</DialogDescription>
+					<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+						<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
+						<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
+						<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
+					</section>
+					<section className="space-y-3 rounded-xl border bg-card p-4">
+						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
+						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
+						{result && <div aria-live="polite" className="space-y-2 text-sm">
+							<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
+							<p>{result.reason}</p>
+						</div>}
+					</section>
+				</DialogContent>
+			</Dialog>
 			<Dialog open={Boolean(deletingNode)} onOpenChange={(open) => !open && setDeleteId(null)}>
 				<DialogContent>
 					<DialogTitle>Delete {deletingNode ? TYPES[deletingNode.type].label.toLowerCase() : "node"}?</DialogTitle>
