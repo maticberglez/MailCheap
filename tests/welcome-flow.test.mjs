@@ -95,3 +95,11 @@ test("zooming keeps the world point at the viewport center fixed", () => {
 	assert.equal((center.x - next.x) / 1.5, center.x - pan.x);
 	assert.equal((center.y - next.y) / 1.5, center.y - pan.y);
 });
+
+test("tight backward connections turn outside both cards", () => {
+	const lane = reverseWireLane(264, 96, 240);
+	const path = flowConnectionPath(384, 162, 216, 152, lane, 112);
+	assert.equal(lane, 68);
+	assert.match(path, /^M 384 162 V 284 Q 384 304 /);
+	assert.match(path, /V 30 Q 68 10 .* Q 216 10 216 30 V 152$/);
+});

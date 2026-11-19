@@ -426,9 +426,9 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 								const y = from.y + NODE_HEIGHT;
 								const endX = to.x + NODE_WIDTH / 2;
 								const endY = to.y;
-								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, reverseWireLane(from.x, to.x, NODE_WIDTH))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, reverseWireLane(from.x, to.x, NODE_WIDTH), NODE_HEIGHT)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
 							}))}
-							{wire && <path d={flowConnectionPath(wire.from.x, wire.from.y, wire.to.x, wire.to.y, wire.lane)}
+							{wire && <path d={flowConnectionPath(wire.from.x, wire.from.y, wire.to.x, wire.to.y, wire.lane, wire.target ? NODE_HEIGHT : 0)}
 								fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
 						</svg>
 						{flow.nodes.map((node, index) => {
