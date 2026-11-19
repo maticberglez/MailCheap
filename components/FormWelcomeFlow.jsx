@@ -29,11 +29,8 @@ function outputX(node, key) {
 	return key === "next" ? NODE_WIDTH / 3 : NODE_WIDTH * 2 / 3;
 }
 
-const EMPTY = { nodes: [], entryTag: "", exitTag: "" };
-
-export default function FormWelcomeFlow({ storageKey }) {
-	const [flow, setFlow] = useState(EMPTY);
-	const [loaded, setLoaded] = useState(false);
+export default function FormWelcomeFlow({ storageKey, initialFlow }) {
+	const [flow, setFlow] = useState(initialFlow);
 	const [tags, setTags] = useState("");
 	const [result, setResult] = useState(null);
 	const [error, setError] = useState("");
@@ -49,7 +46,10 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const canvas = useRef(null);
 	const viewport = useRef(null);
 	const panDrag = useRef(null);
-	const [pan, setPan] = useState({ x: 0, y: 0 });
+	const [pan, setPan] = useState(() => {
+		const first = nodePosition(initialFlow.nodes[0] ?? {}, 0);
+		return { x: 56 - first.x, y: 32 - first.y };
+	});
 	const [isPanning, setIsPanning] = useState(false);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
 	const deletingNode = flow.nodes.find(({ id }) => id === deleteId);
@@ -128,23 +128,6 @@ export default function FormWelcomeFlow({ storageKey }) {
 		setPosition(null);
 	}
 
-
-	function load() {
-		try {
-			const saved = localStorage.getItem(storageKey);
-			if (saved) {
-				const draft = JSON.parse(saved);
-				setFlow(draft);
-				if (draft.nodes.length) {
-					const first = nodePosition(draft.nodes[0], 0);
-					setPan({ x: 56 - first.x, y: 32 - first.y });
-				}
-			}
-		} catch {
-			setError("Could not open the saved draft");
-		}
-		setLoaded(true);
-	}
 
 	function change(next) {
 		setFlow(next);
@@ -243,106 +226,104 @@ export default function FormWelcomeFlow({ storageKey }) {
 			setDeleteId(selectedNode.id);
 		}}>
 			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
-			{!loaded ? <Button onClick={load}>Open welcome flow draft</Button> : (
-				<>
-					<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
-						<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
+			<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
+				<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
+			</div>
+			<div className="grid min-w-0 border-y transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,1fr)_var(--node-settings-width)]" style={{ "--node-settings-width": selectedNode ? "min(32rem, 42%)" : "0px" }}>
+				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
+					style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
+					onPointerDown={startPan} onPointerMove={movePan} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
+					<div ref={canvas} className={`pointer-events-none absolute inset-0 ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+						<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+							{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
+								const from = positions.get(node.id);
+								const to = positions.get(node[key]);
+								if (!to || (wire?.id === node.id && wire.key === key)) return null;
+								const x = from.x + outputX(node, key);
+								const y = from.y + NODE_HEIGHT;
+								const endX = to.x + NODE_WIDTH / 2;
+								const endY = to.y;
+								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, Math.min(from.x, to.x))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+							}))}
+							{wire && positions.has(wire.id) && <path d={flowConnectionPath(
+								positions.get(wire.id).x + outputX(flow.nodes.find(({ id }) => id === wire.id), wire.key),
+								positions.get(wire.id).y + NODE_HEIGHT, wire.x, wire.y,
+								Math.min(positions.get(wire.id).x, positions.get(wire.targetId)?.x ?? wire.x - NODE_WIDTH / 2)
+							)} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
+						</svg>
+						{flow.nodes.map((node, index) => {
+							const { label, icon: Icon } = TYPES[node.type];
+							const { x, y } = positions.get(node.id);
+							return (
+								<article key={node.id} className={`pointer-events-auto absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
+									<div className="flex items-center gap-2">
+										<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+											onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
+											onPointerDown={(event) => startMove(event, node.id, x, y)}
+											onPointerMove={move}
+											onPointerUp={(event) => { move(event); finishMove(event, true); }}
+											onPointerCancel={(event) => finishMove(event, false)}
+											onLostPointerCapture={(event) => finishMove(event, true)}
+										/>
+										<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
+										{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => setSelectedId(node.id)}><Pencil /> Edit</Button>}
+									</div>
+									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : ""}</p>
+									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
+										{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
+									</dl>}
+									<button type="button" title="Input" aria-label={`Connect into step ${index + 1}`}
+										disabled={!connecting || connecting.id === node.id}
+										onClick={() => connectTo(node.id)}
+										className={`absolute -top-2 left-1/2 size-4 -translate-x-1/2 rounded-full border-2 border-background enabled:hover:ring-2 enabled:hover:ring-ring ${wire?.targetId === node.id ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground enabled:bg-primary"}`} />
+									{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
+									{(node.type === "filter" || node.type === "repeat") && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : "to repeat from"}`)}
+								</article>
+							);
+						})}
+						{!flow.nodes.length && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
 					</div>
-					<div className="grid min-w-0 border-y transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,1fr)_var(--node-settings-width)]" style={{ "--node-settings-width": selectedNode ? "min(32rem, 42%)" : "0px" }}>
-						<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
-							style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
-							onPointerDown={startPan} onPointerMove={movePan} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
-							<div ref={canvas} className={`pointer-events-none absolute inset-0 ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
-								<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
-									{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
-										const from = positions.get(node.id);
-										const to = positions.get(node[key]);
-										if (!to || (wire?.id === node.id && wire.key === key)) return null;
-										const x = from.x + outputX(node, key);
-										const y = from.y + NODE_HEIGHT;
-										const endX = to.x + NODE_WIDTH / 2;
-										const endY = to.y;
-										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, Math.min(from.x, to.x))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
-									}))}
-									{wire && positions.has(wire.id) && <path d={flowConnectionPath(
-										positions.get(wire.id).x + outputX(flow.nodes.find(({ id }) => id === wire.id), wire.key),
-										positions.get(wire.id).y + NODE_HEIGHT, wire.x, wire.y,
-										Math.min(positions.get(wire.id).x, positions.get(wire.targetId)?.x ?? wire.x - NODE_WIDTH / 2)
-									)} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
-								</svg>
-								{flow.nodes.map((node, index) => {
-									const { label, icon: Icon } = TYPES[node.type];
-									const { x, y } = positions.get(node.id);
-									return (
-										<article key={node.id} className={`pointer-events-auto absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
-											<div className="flex items-center gap-2">
-												<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
-													onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
-													onPointerDown={(event) => startMove(event, node.id, x, y)}
-													onPointerMove={move}
-													onPointerUp={(event) => { move(event); finishMove(event, true); }}
-													onPointerCancel={(event) => finishMove(event, false)}
-													onLostPointerCapture={(event) => finishMove(event, true)}
-												/>
-												<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
-												{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => setSelectedId(node.id)}><Pencil /> Edit</Button>}
-											</div>
-											<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : ""}</p>
-											{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
-												{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
-											</dl>}
-											<button type="button" title="Input" aria-label={`Connect into step ${index + 1}`}
-												disabled={!connecting || connecting.id === node.id}
-												onClick={() => connectTo(node.id)}
-												className={`absolute -top-2 left-1/2 size-4 -translate-x-1/2 rounded-full border-2 border-background enabled:hover:ring-2 enabled:hover:ring-ring ${wire?.targetId === node.id ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground enabled:bg-primary"}`} />
-											{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
-											{(node.type === "filter" || node.type === "repeat") && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : "to repeat from"}`)}
-										</article>
-									);
-								})}
-								{!flow.nodes.length && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
-							</div>
+				</div>
+				<aside aria-label="Node settings" inert={!selectedNode} aria-hidden={!selectedNode}
+					className={`min-w-0 overflow-y-auto bg-card lg:h-[calc(100dvh-7rem)] ${selectedNode ? "border-t lg:border-t-0 lg:border-l" : "hidden lg:block"}`}>
+					{selectedNode && <section className="space-y-3 p-4">
+						<div className="flex items-center gap-1">
+							<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
+							<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
+							<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
 						</div>
-						<aside aria-label="Node settings" inert={!selectedNode} aria-hidden={!selectedNode}
-							className={`min-w-0 overflow-y-auto bg-card lg:h-[calc(100dvh-7rem)] ${selectedNode ? "border-t lg:border-t-0 lg:border-l" : "hidden lg:block"}`}>
-							{selectedNode && <section className="space-y-3 p-4">
-								<div className="flex items-center gap-1">
-									<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
-									<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
-									<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
-								</div>
-								{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
-								{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
-									{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
-									{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
-								</div>}
-								{selectedNode.type === "email" && <>
-									<div className="grid gap-3 sm:grid-cols-2">
-										{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
-									</div>
-									<div className="overflow-hidden rounded-lg border">
-										<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
-									</div>
-								</>}
-							</section>}
-						</aside>
-					</div>
-					{connecting && <div role="status" className="flex items-center gap-2 text-sm">Select the destination’s input dot. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
-					<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
-						<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
-						<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
-						<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
-					</section>
-					<section className="space-y-3 rounded-xl border bg-card p-4">
-						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
-						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
-						{result && <div aria-live="polite" className="space-y-2 text-sm">
-							<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
-							<p>{result.reason}</p>
+						{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
+						{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
+							{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
+							{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
 						</div>}
-					</section>
-				</>
-			)}
+						{selectedNode.type === "email" && <>
+							<div className="grid gap-3 sm:grid-cols-2">
+								{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
+							</div>
+							<div className="overflow-hidden rounded-lg border">
+								<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
+							</div>
+						</>}
+					</section>}
+				</aside>
+			</div>
+			{connecting && <div role="status" className="flex items-center gap-2 text-sm">Select the destination’s input dot. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
+			<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+				<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
+				<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
+				<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
+			</section>
+			<section className="space-y-3 rounded-xl border bg-card p-4">
+				<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
+				<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
+				{result && <div aria-live="polite" className="space-y-2 text-sm">
+					<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
+					<p>{result.reason}</p>
+				</div>}
+			</section>
+
+
 			<Dialog open={Boolean(deletingNode)} onOpenChange={(open) => !open && setDeleteId(null)}>
 				<DialogContent>
 					<DialogTitle>Delete {deletingNode ? TYPES[deletingNode.type].label.toLowerCase() : "node"}?</DialogTitle>
