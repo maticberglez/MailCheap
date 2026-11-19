@@ -124,7 +124,7 @@ export default function WritingPage() {
 				website keep it where you put it.
 			</p>
 			<p>
-				Double-click a picture to open the picker and replace it. Use Duplicate in the block gutter or the image toolbar to insert a copy immediately below. Choose Image link in the picture toolbar to make the picture clickable. Clear the address and press Enter to remove the link. Drag the corner radius or vertical spacing icon up or right to increase it, and down or left to decrease it. Click to type a value.
+				Double-click a picture to open the picker and replace it. Use Duplicate in the left gutter or the image toolbar to insert a copy immediately below. Use Delete block in the right gutter to remove a block. Choose Image link in the picture toolbar to make the picture clickable. Clear the address and press Enter to remove the link. Drag the corner radius or vertical spacing icon up or right to increase it, and down or left to decrease it. Click to type a value.
 				Use Header or Footer to insert editable starter blocks. Choose Two columns, Three columns or Four columns to place blocks side by side. Click inside a column and type / to insert a block. MailCheap still adds its standard email footer.
 			</p>
 			<FigureHelp
