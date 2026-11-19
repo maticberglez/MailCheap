@@ -5,7 +5,7 @@ import { Clock, Focus, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, flowConnectionPath, simulateWelcomeFlow } from "@/lib/welcome-flow";
+import { MAX_FLOW_STEPS, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
@@ -38,6 +38,9 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const [error, setError] = useState("");
 	const [selectedId, setSelectedId] = useState(null);
 	const [connecting, setConnecting] = useState(null);
+	const wireGesture = useRef(null);
+	const suppressWireClick = useRef(false);
+	const [wire, setWire] = useState(null);
 	const [position, setPosition] = useState(null);
 	const drag = useRef(null);
 	const moved = useRef(false);
@@ -50,22 +53,25 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
 
-	function panWithinFlow(x, y) {
+	function panWithinFlow(x, y, elastic = false) {
 		const { clientWidth, clientHeight } = viewport.current;
 		const points = savedPositions.length ? savedPositions : [{ x: 56, y: 32 }];
 		const left = Math.min(...points.map((point) => point.x));
 		const top = Math.min(...points.map((point) => point.y));
 		const right = Math.max(...points.map((point) => point.x + NODE_WIDTH));
 		const bottom = Math.max(...points.map((point) => point.y + NODE_HEIGHT));
+		const constrain = elastic ? resistCanvasPan : (value, min, max) => Math.max(min, Math.min(max, value));
 		return {
-			x: Math.max(Math.min(56 - left, clientWidth - right) - PAN_MARGIN, Math.min(-left + PAN_MARGIN, x)),
-			y: Math.max(Math.min(32 - top, clientHeight - bottom) - PAN_MARGIN, Math.min(-top + PAN_MARGIN, y)),
+			x: constrain(x, Math.min(56 - left, clientWidth - right) - PAN_MARGIN, -left + PAN_MARGIN),
+			y: constrain(y, Math.min(32 - top, clientHeight - bottom) - PAN_MARGIN, -top + PAN_MARGIN),
 		};
 	}
 
 	function startPan(event) {
-		if (event.target !== event.currentTarget || event.button !== 0 || drag.current || panDrag.current) return;
-		panDrag.current = { pointerId: event.pointerId, x: event.clientX - pan.x, y: event.clientY - pan.y };
+		if (event.target !== event.currentTarget || event.button !== 0 || drag.current || panDrag.current || wireGesture.current) return;
+		const transform = new DOMMatrix(getComputedStyle(canvas.current).transform);
+		setPan({ x: transform.m41, y: transform.m42 });
+		panDrag.current = { pointerId: event.pointerId, x: event.clientX - transform.m41, y: event.clientY - transform.m42 };
 		event.currentTarget.setPointerCapture(event.pointerId);
 		setIsPanning(true);
 	}
@@ -73,13 +79,14 @@ export default function FormWelcomeFlow({ storageKey }) {
 	function movePan(event) {
 		const start = panDrag.current;
 		if (start?.pointerId !== event.pointerId) return;
-		setPan(panWithinFlow(event.clientX - start.x, event.clientY - start.y));
+		setPan(panWithinFlow(event.clientX - start.x, event.clientY - start.y, true));
 	}
 
 	function finishPan(event) {
 		if (panDrag.current?.pointerId !== event.pointerId) return;
 		panDrag.current = null;
 		setIsPanning(false);
+		setPan((point) => panWithinFlow(point.x, point.y));
 	}
 
 	function revealNode({ x, y }) {
@@ -167,37 +174,81 @@ export default function FormWelcomeFlow({ storageKey }) {
 		}
 	}
 
+	function startWire(event, node, key) {
+		if (event.button !== 0 || drag.current || panDrag.current) return;
+		suppressWireClick.current = false;
+		wireGesture.current = { id: node.id, key, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+		event.currentTarget.setPointerCapture(event.pointerId);
+		setSelectedId(null);
+	}
+
+	function trackWire(event) {
+		const gesture = wireGesture.current;
+		if (!gesture || gesture.pointerId !== event.pointerId) return null;
+		if (!gesture.moved && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 3) return null;
+		gesture.moved = true;
+		suppressWireClick.current = true;
+		const bounds = canvas.current.getBoundingClientRect();
+		const x = event.clientX - bounds.left;
+		const y = event.clientY - bounds.top;
+		const inputs = [...positions].filter(([id]) => id !== gesture.id).map(([id, point]) => ({ id, x: point.x + NODE_WIDTH / 2, y: point.y }));
+		const target = nearestFlowInput(inputs, x, y);
+		const preview = { id: gesture.id, key: gesture.key, x: target?.x ?? x, y: target?.y ?? y, targetId: target?.id };
+		setWire(preview);
+		return preview;
+	}
+
+	function finishWire(event) {
+		const preview = trackWire(event);
+		if (!preview) return;
+		if (preview.targetId) update(preview.id, { [preview.key]: preview.targetId });
+		setConnecting(null);
+		setWire(null);
+	}
+
 	function port(node, key, label) {
-		const active = connecting?.id === node.id && connecting.key === key;
+		const active = (connecting?.id === node.id && connecting.key === key) || (wire?.id === node.id && wire.key === key);
 		return <button type="button" title={label} aria-label={label} aria-pressed={active}
-			onClick={() => { setSelectedId(null); setConnecting(active ? null : { id: node.id, key }); }}
-			className={`absolute -bottom-2 size-4 -translate-x-1/2 rounded-full border-2 border-background hover:ring-2 hover:ring-ring ${active ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground"}`} style={{ left: outputX(node, key) }} />;
+			onPointerDown={(event) => startWire(event, node, key)}
+			onPointerMove={(event) => trackWire(event)}
+			onPointerUp={finishWire}
+			onLostPointerCapture={() => { wireGesture.current = null; setWire(null); }}
+			onClick={(event) => {
+				if (event.detail !== 0 && suppressWireClick.current) return;
+				setSelectedId(null);
+				setConnecting(active ? null : { id: node.id, key });
+			}}
+			className={`absolute -bottom-2 size-4 cursor-crosshair touch-none -translate-x-1/2 rounded-full border-2 border-background hover:ring-2 hover:ring-ring ${active ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground"}`} style={{ left: outputX(node, key) }} />;
 	}
 
 	return (
 		<div className="space-y-4">
-			<p className="text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
+			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
 			{!loaded ? <Button onClick={load}>Open welcome flow draft</Button> : (
 				<>
-					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
+					<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
 						<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
 					</div>
-					<div className="relative isolate overflow-hidden rounded-xl border">
-						<div ref={viewport} aria-label="Automation playground" className={`relative h-[calc(100dvh-9rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+					<div className="relative isolate overflow-hidden border-y">
+						<div ref={viewport} aria-label="Automation playground" className={`relative h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
 							style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
 							onPointerDown={startPan} onPointerMove={movePan} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
-							<div ref={canvas} className="pointer-events-none absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+							<div ref={canvas} className={`pointer-events-none absolute inset-0 ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
 								<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
 									{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 										const from = positions.get(node.id);
 										const to = positions.get(node[key]);
-										if (!to) return null;
+										if (!to || (wire?.id === node.id && wire.key === key)) return null;
 										const x = from.x + outputX(node, key);
 										const y = from.y + NODE_HEIGHT;
 										const endX = to.x + NODE_WIDTH / 2;
 										const endY = to.y;
-										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY)} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
 									}))}
+									{wire && positions.has(wire.id) && <path d={flowConnectionPath(
+										positions.get(wire.id).x + outputX(flow.nodes.find(({ id }) => id === wire.id), wire.key),
+										positions.get(wire.id).y + NODE_HEIGHT, wire.x, wire.y
+									)} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
 								</svg>
 								{flow.nodes.map((node, index) => {
 									const { label, icon: Icon } = TYPES[node.type];
@@ -223,7 +274,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 											<button type="button" title="Input" aria-label={`Connect into step ${index + 1}`}
 												disabled={!connecting || connecting.id === node.id}
 												onClick={() => connectTo(node.id)}
-												className="absolute -top-2 left-1/2 size-4 -translate-x-1/2 rounded-full border-2 border-background bg-muted-foreground enabled:bg-primary enabled:hover:ring-2 enabled:hover:ring-ring" />
+												className={`absolute -top-2 left-1/2 size-4 -translate-x-1/2 rounded-full border-2 border-background enabled:hover:ring-2 enabled:hover:ring-ring ${wire?.targetId === node.id ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground enabled:bg-primary"}`} />
 											{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
 											{(node.type === "filter" || node.type === "repeat") && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : "to repeat from"}`)}
 										</article>

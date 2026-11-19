@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, flowConnectionPath, simulateWelcomeFlow } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -38,4 +38,18 @@ test("connections use smooth curves above, below and level with their source", (
 		assert.equal(path.match(/ C /g).length, 2);
 		assert.ok(path.endsWith(`180 ${y}`));
 	}
+});
+
+test("canvas overscroll resists the pointer outside its bounds", () => {
+	assert.equal(resistCanvasPan(12, -40, 40), 12);
+	assert.ok(resistCanvasPan(100, -40, 40) > 40);
+	assert.ok(resistCanvasPan(100, -40, 40) < 100);
+	assert.ok(resistCanvasPan(1e6, -40, 40) < 136);
+	assert.ok(resistCanvasPan(-100, -40, 40) > -100);
+});
+
+test("a wire snaps to the closest input inside the snap radius", () => {
+	const inputs = [{ id: "first", x: 10, y: 30 }, { id: "second", x: 40, y: 30 }];
+	assert.equal(nearestFlowInput(inputs, 34, 28)?.id, "second");
+	assert.equal(nearestFlowInput(inputs, 100, 100), null);
 });
