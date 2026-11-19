@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -58,7 +58,7 @@ test("a later node can connect back to the first node", () => {
 	const flow = { nodes: [{ id: "first", next: "last" }, { id: "last" }] };
 	const linked = connectFlowNodes(flow, "last", "next", "first");
 	assert.deepEqual(simulateWelcomeFlow(linked, []).path.slice(0, 3).map(({ id }) => id), ["first", "last", "first"]);
-	assert.match(flowConnectionPath(176, 320, 176, 32, 56), /L 28 12 C 28/);
+	assert.match(flowConnectionPath(176, 320, 176, 32, 28), /L 28 12 C 28/);
 });
 
 test("an SMS step carries its message and follows its outgoing connection", () => {
@@ -77,4 +77,19 @@ test("starting a connection at an input still saves the wire from output to inpu
 	assert.deepEqual(orientFlowConnection(output, input), expected);
 	assert.equal(orientFlowConnection(input, { id: "last", key: "input" }), null);
 	assert.equal(orientFlowConnection(input, { id: "first", key: "next" }), null);
+});
+
+test("reverse connections use the gap between separated cards", () => {
+	const lane = reverseWireLane(446, 142, 240);
+	assert.equal(lane, 414);
+	assert.match(flowConnectionPath(566, 286, 262, 98, lane), /L 414 78 C 414/);
+	assert.equal(reverseWireLane(142, 142, 240), 114);
+});
+
+test("zooming keeps the world point at the viewport center fixed", () => {
+	const pan = { x: 100, y: -80 };
+	const center = { x: 360, y: 250 };
+	const next = zoomCanvasAround(pan, 1, 1.5, center.x, center.y);
+	assert.equal((center.x - next.x) / 1.5, center.x - pan.x);
+	assert.equal((center.y - next.y) / 1.5, center.y - pan.y);
 });

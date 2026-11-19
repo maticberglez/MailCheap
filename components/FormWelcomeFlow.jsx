@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, MessageSquare, Repeat, Trash2, X } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
+import { sendAutomationTest } from "@/app/(app)/automations/actions";
+import { renderEmail } from "@/lib/render-email";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, simulateWelcomeFlow } from "@/lib/welcome-flow";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
@@ -19,6 +21,7 @@ const TYPES = {
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 112;
 const PAN_MARGIN = 220;
+const TOOL_BUTTON = "h-11 min-w-0 justify-start rounded-xl border-border bg-card px-2.5 text-sm font-medium shadow-sm hover:bg-muted sm:w-36 sm:px-3 [&_svg]:size-5";
 const EMAIL_FIELDS = [
 	["value", "Subject", "Welcome to our newsletter"],
 	["previewText", "Preview text", "A quick hello and what to expect"],
@@ -35,6 +38,42 @@ function AddressField({ label, placeholder, options, value, onChange }) {
 				{options.map((email) => <option key={email} value={email}>{email}</option>)}
 			</select>
 		</label>
+	);
+}
+
+function EmailNodePreview({ node, addresses }) {
+	const [isSending, startSending] = useTransition();
+	const [result, setResult] = useState("");
+	const { html } = renderEmail({
+		format: "rich", html: node.html ?? "", subject: node.value, previewText: node.previewText,
+		newsletter: { name: addresses.senderName, fromName: node.fromName || addresses.senderName },
+	});
+
+	function send() {
+		startSending(async () => {
+			setResult("");
+			try {
+				const result = await sendAutomationTest({
+					newsletterId: addresses.newsletterId, subject: node.value || "", previewText: node.previewText || "",
+					fromName: node.fromName || "", fromEmail: node.fromEmail || "", replyTo: node.replyTo || "", html: node.html || "",
+				});
+				setResult(result.sent ? `Test sent to ${result.to}.` : result.error);
+			} catch {
+				setResult("Could not send the test email.");
+			}
+		});
+	}
+
+	return (
+		<div className="space-y-2">
+			<div className="overflow-hidden rounded-xl border bg-muted/30">
+				{node.html ? <iframe title="Email preview" sandbox="" tabIndex={-1} inert srcDoc={html} className="pointer-events-none block h-40 w-full bg-white" />
+					: <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
+			</div>
+			<Button variant="outline" size="sm" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
+				title={`Send to ${addresses.testRecipient}`} onClick={send}><Mail />{isSending ? "Sending…" : "Send test to me"}</Button>
+			{result && <p role="status" className="text-sm text-muted-foreground">{result}</p>}
+		</div>
 	);
 }
 
@@ -72,12 +111,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		return { x: 56 - first.x, y: 32 - first.y };
 	});
 	const [isPanning, setIsPanning] = useState(false);
+	const [zoom, setZoom] = useState(1);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
 	const deletingNode = flow.nodes.find(({ id }) => id === deleteId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
 
-	function panWithinFlow(x, y, elastic = false) {
+	function panWithinFlow(x, y, elastic = false, scale = zoom) {
 		const { clientWidth, clientHeight } = viewport.current;
 		const points = savedPositions.length ? savedPositions : [{ x: 56, y: 32 }];
 		const left = Math.min(...points.map((point) => point.x));
@@ -86,8 +126,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		const bottom = Math.max(...points.map((point) => point.y + NODE_HEIGHT));
 		const constrain = elastic ? resistCanvasPan : (value, min, max) => Math.max(min, Math.min(max, value));
 		return {
-			x: constrain(x, Math.min(56 - left, clientWidth - right) - PAN_MARGIN, Math.max(-left, (clientWidth - NODE_WIDTH) / 2 - points[0].x) + PAN_MARGIN),
-			y: constrain(y, Math.min(32 - top, clientHeight - bottom) - PAN_MARGIN, -top + PAN_MARGIN),
+			x: constrain(x, Math.min(56 - left * scale, clientWidth - right * scale) - PAN_MARGIN, Math.max(-left * scale, (clientWidth - NODE_WIDTH * scale) / 2 - points[0].x * scale) + PAN_MARGIN),
+			y: constrain(y, Math.min(32 - top * scale, clientHeight - bottom * scale) - PAN_MARGIN, -top * scale + PAN_MARGIN),
 		};
 	}
 
@@ -113,16 +153,31 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		setPan((point) => panWithinFlow(point.x, point.y));
 	}
 
+	function changeZoom(next) {
+		if (!viewport.current || drag.current || panDrag.current || wireGesture.current || placement) return;
+		const value = Math.max(0.5, Math.min(1.6, Math.round(next * 100) / 100));
+		const { clientWidth, clientHeight } = viewport.current;
+		const point = zoomCanvasAround(pan, zoom, value, clientWidth / 2, clientHeight / 2);
+		setZoom(value);
+		setPan(panWithinFlow(point.x, point.y, false, value));
+	}
+
+	function canvasPoint(clientX, clientY) {
+		const { left, top, width } = canvas.current.getBoundingClientRect();
+		const scale = width / canvas.current.clientWidth || zoom;
+		return { x: (clientX - left) / scale, y: (clientY - top) / scale };
+	}
+
 	function revealNode({ x, y }) {
 		if (!viewport.current) return;
-		setPan({ x: (viewport.current.clientWidth - NODE_WIDTH) / 2 - x, y: 32 - y });
+		setPan({ x: (viewport.current.clientWidth - NODE_WIDTH * zoom) / 2 - x * zoom, y: 32 - y * zoom });
 	}
 
 	function startMove(event, id, x, y) {
 		if (event.button !== 0 || drag.current || panDrag.current || !canvas.current) return;
-		const bounds = canvas.current.getBoundingClientRect();
+		const point = canvasPoint(event.clientX, event.clientY);
 		moved.current = false;
-		drag.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: event.clientX - bounds.left - x, offsetY: event.clientY - bounds.top - y };
+		drag.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: point.x - x, offsetY: point.y - y };
 		event.currentTarget.setPointerCapture(event.pointerId);
 	}
 
@@ -131,9 +186,12 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		if (!current || current.pointerId !== event.pointerId || !canvas.current) return;
 		if (!moved.current && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 4) return;
 		moved.current = true;
-		const bounds = canvas.current.getBoundingClientRect();
-		const x = Math.max(12 - pan.x, Math.min(viewport.current.clientWidth - NODE_WIDTH - 12 - pan.x, event.clientX - bounds.left - current.offsetX));
-		const y = Math.max(12 - pan.y, Math.min(viewport.current.clientHeight - NODE_HEIGHT - 12 - pan.y, event.clientY - bounds.top - current.offsetY));
+		const view = viewport.current.getBoundingClientRect();
+		const start = canvasPoint(view.left + 12, view.top + 12);
+		const end = canvasPoint(view.right - 12, view.bottom - 12);
+		const point = canvasPoint(event.clientX, event.clientY);
+		const x = Math.max(start.x, Math.min(end.x - NODE_WIDTH, point.x - current.offsetX));
+		const y = Math.max(start.y, Math.min(end.y - NODE_HEIGHT, point.y - current.offsetY));
 		current.position = { id: current.id, x, y };
 		setPosition(current.position);
 	}
@@ -163,10 +221,12 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 
 	function placementPoint(clientX, clientY) {
 		const view = viewport.current.getBoundingClientRect();
-		const world = canvas.current.getBoundingClientRect();
+		const start = canvasPoint(view.left + 8, view.top + 8);
+		const end = canvasPoint(view.right - 8, view.bottom - 8);
+		const point = canvasPoint(clientX, clientY);
 		return {
-			x: Math.max(view.left + 8, Math.min(view.right - NODE_WIDTH - 8, clientX - NODE_WIDTH / 2)) - world.left,
-			y: Math.max(view.top + 8, Math.min(view.bottom - NODE_HEIGHT - 8, clientY - 18)) - world.top,
+			x: Math.max(start.x, Math.min(end.x - NODE_WIDTH, point.x - NODE_WIDTH / 2)),
+			y: Math.max(start.y, Math.min(end.y - NODE_HEIGHT, point.y - 18)),
 		};
 	}
 
@@ -221,9 +281,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		if (!gesture.moved && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 3) return null;
 		gesture.moved = true;
 		suppressWireClick.current = true;
-		const bounds = canvas.current.getBoundingClientRect();
-		const x = event.clientX - bounds.left;
-		const y = event.clientY - bounds.top;
+		const { x, y } = canvasPoint(event.clientX, event.clientY);
 		const reverse = gesture.key === "input";
 		const points = flow.nodes.filter((node) => node.id !== gesture.id).flatMap((node) => {
 			const point = positions.get(node.id);
@@ -232,12 +290,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 			const outputs = node.type === "filter" || node.type === "repeat" ? ["next", "other"] : ["next"];
 			return outputs.map((key) => ({ id: node.id, key, x: point.x + outputX(node, key), y: point.y + NODE_HEIGHT }));
 		});
-		const target = nearestFlowInput(points, x, y);
+		const target = nearestFlowInput(points, x, y, 28 / zoom);
 		const node = flow.nodes.find(({ id }) => id === gesture.id);
 		const point = positions.get(gesture.id);
 		const fixed = { x: point.x + (reverse ? NODE_WIDTH / 2 : outputX(node, gesture.key)), y: point.y + (reverse ? 0 : NODE_HEIGHT) };
 		const free = target ?? { x, y };
-		const preview = { id: gesture.id, key: gesture.key, target, from: reverse ? free : fixed, to: reverse ? fixed : free };
+		const preview = { id: gesture.id, key: gesture.key, target, from: reverse ? free : fixed, to: reverse ? fixed : free,
+			lane: target ? reverseWireLane(point.x, positions.get(target.id).x, NODE_WIDTH) : undefined };
 
 		setWire(preview);
 		return preview;
@@ -286,19 +345,19 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
 				<div role="toolbar" aria-label="Automation tools" className="flex min-h-0 flex-col items-stretch gap-1.5 overflow-y-auto p-1.5 sm:p-3">
 					{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
-						<Button key={type} variant="outline" className="h-11 justify-start px-2.5 text-sm sm:min-w-28 sm:px-3 [&_svg]:size-5" title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
+						<Button key={type} variant="outline" className={TOOL_BUTTON} title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
 							<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
 						</Button>
 					))}
-					<Button variant="outline" size="sm" className="justify-start" title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
+					<Button variant="outline" className={TOOL_BUTTON} title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
 						<Focus aria-hidden="true" /><span className="hidden sm:inline">Back to start</span>
 					</Button>
-					<Button variant="outline" size="sm" className="justify-start" title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
+					<Button variant="outline" className={TOOL_BUTTON} title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
 						<Play aria-hidden="true" /><span className="hidden sm:inline">Simulate</span>
 					</Button>
 				</div>
 				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
-					style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
+					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
 						if (placement && event.target === event.currentTarget && event.button === 0) place(placementPoint(event.clientX, event.clientY));
 						else startPan(event);
@@ -307,7 +366,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 						if (placement) setPlacement({ ...placement, ...placementPoint(event.clientX, event.clientY) });
 						else movePan(event);
 					}} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
-					<div ref={canvas} className={`pointer-events-none absolute inset-0 ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
 						<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
 							{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 								const from = positions.get(node.id);
@@ -317,9 +376,9 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 								const y = from.y + NODE_HEIGHT;
 								const endX = to.x + NODE_WIDTH / 2;
 								const endY = to.y;
-								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, Math.min(from.x, to.x))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, reverseWireLane(from.x, to.x, NODE_WIDTH))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
 							}))}
-							{wire && <path d={flowConnectionPath(wire.from.x, wire.from.y, wire.to.x, wire.to.y)}
+							{wire && <path d={flowConnectionPath(wire.from.x, wire.from.y, wire.to.x, wire.to.y, wire.lane)}
 								fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
 						</svg>
 						{flow.nodes.map((node, index) => {
@@ -358,6 +417,11 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 							{TYPES[placement.type].label}
 						</div>}
 						{!flow.nodes.length && !placement && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
+					</div>
+					<div className="absolute bottom-3 left-3 z-10 flex items-center gap-0.5 rounded-lg border bg-card p-0.5 shadow-sm">
+						<Button variant="ghost" size="icon-sm" aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => changeZoom(zoom - 0.1)}><Minus /></Button>
+						<Button variant="ghost" size="sm" aria-label="Reset zoom" onClick={() => changeZoom(1)}>{Math.round(zoom * 100)}%</Button>
+						<Button variant="ghost" size="icon-sm" aria-label="Zoom in" disabled={zoom >= 1.6} onClick={() => changeZoom(zoom + 0.1)}><Plus /></Button>
 					</div>
 					{placement && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">
 						Click the canvas to place the node.
@@ -401,7 +465,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 									<AddressField label="Reply to" placeholder="Use the sender address" options={addresses.replyEmails}
 										value={selectedNode.replyTo ?? ""} onChange={(replyTo) => update(selectedNode.id, { replyTo })} />
 								</div>
-								<Button asChild><Link href={`${editPath}/${selectedNode.id}`}><Pencil /> Edit email</Link></Button>
+								<EmailNodePreview key={selectedNode.id} node={selectedNode} addresses={addresses} />
+									<Button asChild><Link href={`${editPath}/${selectedNode.id}`}><Pencil /> Edit email</Link></Button>
 							</>}
 						</section>}
 					</aside>

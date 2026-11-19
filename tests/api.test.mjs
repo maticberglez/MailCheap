@@ -353,6 +353,23 @@ describe("sending through the API", () => {
 		assert.equal(report.body.rates.delivered, 0, "no delivery events yet");
 	});
 
+	test("automation tests use the newsletter sender and deliver only to the account owner", async () => {
+		const user = await customer("automation-test@example.com");
+		const other = await customer("automation-other@example.com");
+		const path = `/newsletters/${user.slug}/automation-test`;
+		const body = { subject: "Welcome aboard", html: "<p>Glad you are here.</p>" };
+		const before = sesEmails.length;
+		assertError(await api(other.key, "POST", path, body), 404, "not_found");
+		assertError(await api(user.key, "POST", path, { ...body, fromEmail: "outside@example.org" }), 400, "validation_failed");
+		assert.equal(sesEmails.length, before);
+		const response = await api(user.key, "POST", path, { ...body, to: ["outside@example.org"] });
+		assert.equal(response.status, 200);
+		assert.equal(response.body.sentTo, "automation-test@example.com");
+		assert.equal(sesEmails.length, before + 1);
+		assert.equal(sesEmails.at(-1).subject, "[Test] Welcome aboard");
+		assert.match(sesEmails.at(-1).html, /Glad you are here/);
+	});
+
 	test("scheduling, unscheduling and test emails", async () => {
 		const user = await customer("schedule-api@example.com");
 		await importReaders(user, 1);
