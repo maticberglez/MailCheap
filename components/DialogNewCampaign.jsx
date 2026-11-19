@@ -17,6 +17,15 @@ const PAGE = "h-[4.25rem] w-[3.25rem] rounded-[5px] bg-background shadow-border"
 // that opens it. campaigns: { id, subject, status, label, at, thumbnail }, newest first, each thumbnail rendered on
 // the server.
 export default function DialogNewCampaign({ newsletterId, campaigns, children }) {
+	return (
+		<DialogNewDraft title="New campaign" copyTitle="Copy a campaign" drafts={campaigns}
+			onBlank={() => createCampaign(newsletterId)} onCopy={duplicateCampaign}>
+			{children}
+		</DialogNewDraft>
+	);
+}
+
+export function DialogNewDraft({ title, copyTitle, drafts, onBlank, onCopy, children }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [step, setStep] = useState("choose");
 	const [pendingId, setPendingId] = useState(null);
@@ -31,8 +40,9 @@ export default function DialogNewCampaign({ newsletterId, campaigns, children })
 	function start(id) {
 		setPendingId(id);
 		startTransition(async () => {
-			const result = id === BLANK ? await createCampaign(newsletterId) : await duplicateCampaign(id);
+			const result = id === BLANK ? await onBlank() : await onCopy(id);
 			if (result?.error) toast.error(result.error);
+			else changeOpen(false);
 		});
 	}
 
@@ -48,10 +58,10 @@ export default function DialogNewCampaign({ newsletterId, campaigns, children })
 							<Button variant="ghost" size="icon-sm" aria-label="Back" onClick={() => setStep("back")} className="-ml-1.5">
 								<ChevronLeft />
 							</Button>
-							<DialogTitle>Copy a campaign</DialogTitle>
+							<DialogTitle>{copyTitle}</DialogTitle>
 						</DialogHeader>
 						<ul className="-mx-2 max-h-[min(22rem,55dvh)] overflow-y-auto overscroll-contain [scrollbar-width:thin]">
-							{campaigns.map((campaign, index) => (
+							{drafts.map((campaign, index) => (
 								<li key={campaign.id}>
 									<OptionCampaign
 										campaign={campaign}
@@ -68,7 +78,7 @@ export default function DialogNewCampaign({ newsletterId, campaigns, children })
 				) : (
 					<div className={cn("grid gap-4", step === "back" && "animate-fade-in")}>
 						<DialogHeader>
-							<DialogTitle>New campaign</DialogTitle>
+							<DialogTitle>{title}</DialogTitle>
 						</DialogHeader>
 						<div className="grid grid-cols-2 gap-2">
 							<TileStart title="Blank" isStarting={isStarting(BLANK)} isDisabled={isPending} onPick={() => start(BLANK)}>
@@ -77,10 +87,10 @@ export default function DialogNewCampaign({ newsletterId, campaigns, children })
 								</span>
 							</TileStart>
 							<TileStart
-								title="Copy a campaign"
+								title={copyTitle}
 								autoFocus={step === "back"}
 								isDimmed={isPending}
-								isDisabled={isPending}
+								isDisabled={isPending || drafts.length === 0}
 								onPick={() => setStep("copy")}
 							>
 								<span className="relative h-[4.25rem] w-[3.25rem]">

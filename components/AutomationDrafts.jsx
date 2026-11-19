@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { ArrowLeft, Copy, GitBranch, MoreHorizontal, PenLine, Plus, Trash2 } from "lucide-react";
+import { DialogNewDraft } from "@/components/DialogNewCampaign";
 import BadgeStatus from "@/components/BadgeStatus";
 import TextEmpty from "@/components/TextEmpty";
 import FormWelcomeFlow from "@/components/FormWelcomeFlow";
@@ -82,28 +83,43 @@ function DraftList({ scope }) {
 		event.preventDefault();
 		const name = String(new FormData(event.currentTarget).get("name")).trim();
 		if (!name || initial.error) return;
-		const id = editing.id ?? crypto.randomUUID();
-		const next = editing.id ? drafts.map((draft) => draft.id === id ? { ...draft, name } : draft) : [{ id, name, updatedAt: new Date().toISOString() }, ...drafts];
-		if (!save(next)) return;
-		setEditing(null);
-		if (!editing.id) router.push(`/automations/${id}`);
+		if (save(drafts.map((draft) => draft.id === editing.id ? { ...draft, name } : draft))) setEditing(null);
 	}
 
-	function duplicate(draft) {
+	function createDraft(source, open) {
 		const id = crypto.randomUUID();
+		const name = source ? `${source.name.slice(0, 93)} (copy)` : "Untitled automation";
+		const updatedAt = new Date().toISOString();
 		try {
-			const flow = readAutomationDraft(localStorage, scope, draft.id);
-			localStorage.setItem(automationDraftKey(scope, id), JSON.stringify({ ...flow, updatedAt: new Date().toISOString() }));
-			save([{ id, name: `${draft.name.slice(0, 93)} (copy)`, updatedAt: new Date().toISOString() }, ...drafts]);
+			if (source) {
+				const flow = readAutomationDraft(localStorage, scope, source.id);
+				localStorage.setItem(automationDraftKey(scope, id), JSON.stringify({ ...flow, updatedAt }));
+			}
+			if (!save([{ id, name, updatedAt }, ...drafts])) {
+				if (source) localStorage.removeItem(automationDraftKey(scope, id));
+				return { error: "Could not save your automation list." };
+			}
 		} catch {
-			setError("Could not duplicate this automation.");
+			const error = source ? "Could not duplicate this automation." : "Could not create this automation.";
+			setError(error);
+			return { error };
 		}
+		if (open) router.push(`/automations/${id}`);
 	}
 
 	return (
 		<>
 			<HeaderPage title="Automations">
-				<Button disabled={Boolean(initial.error)} onClick={() => setEditing({ name: "" })}><Plus data-icon="inline-start" /> New</Button>
+				<DialogNewDraft title="New automation" copyTitle="Copy an automation"
+					drafts={drafts.map((draft) => ({ id: draft.id, subject: draft.name, status: "draft", at: draft.updatedAt,
+						thumbnail: <GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /> }))}
+					onBlank={() => createDraft(null, true)}
+					onCopy={(id) => {
+						const source = drafts.find((draft) => draft.id === id);
+						return source ? createDraft(source, true) : { error: "Automation draft unavailable." };
+					}}>
+					<Button disabled={Boolean(initial.error)}><Plus data-icon="inline-start" /> New</Button>
+				</DialogNewDraft>
 			</HeaderPage>
 			{drafts.length ? (
 				<div className="animate-enter overflow-hidden rounded-xl shadow-border">
@@ -122,9 +138,9 @@ function DraftList({ scope }) {
 						<TableBody>
 							{drafts.map((draft) => (
 								<TableRow key={draft.id} className="relative">
-									<TableCell className="w-full max-w-0 py-3 pl-4 sm:w-1/2">
-										<div className="flex min-w-0 items-center gap-3.5">
-											<span className="grid h-10 w-16 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><GitBranch aria-hidden="true" className="size-4" /></span>
+									<TableCell className="w-full max-w-0 py-2 pl-4 sm:w-1/2">
+										<div className="flex min-w-0 items-center gap-2">
+											<GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
 											<Link className="min-w-0 truncate font-medium after:absolute after:inset-0" href={`/automations/${draft.id}`}>{draft.name}</Link>
 										</div>
 									</TableCell>
@@ -138,7 +154,7 @@ function DraftList({ scope }) {
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end" className="min-w-52">
 												<DropdownMenuItem asChild><Link href={`/automations/${draft.id}`}><PenLine /> Edit</Link></DropdownMenuItem>
-												<DropdownMenuItem onSelect={() => duplicate(draft)}><Copy /> Duplicate</DropdownMenuItem>
+												<DropdownMenuItem onSelect={() => createDraft(draft, false)}><Copy /> Duplicate</DropdownMenuItem>
 												<DropdownMenuItem onSelect={() => setEditing(draft)}><PenLine /> Rename</DropdownMenuItem>
 												<DropdownMenuSeparator />
 												<DropdownMenuItem variant="destructive" onSelect={() => setDeleting(draft)}><Trash2 /> Delete</DropdownMenuItem>
@@ -154,11 +170,11 @@ function DraftList({ scope }) {
 			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 			<Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
 				<DialogContent>
-					<DialogTitle>{editing?.id ? "Rename automation" : "New automation"}</DialogTitle>
+					<DialogTitle>Rename automation</DialogTitle>
 					<DialogDescription>Choose a name for this draft.</DialogDescription>
 					<form className="space-y-4" onSubmit={saveName}>
-						<Input key={editing?.id ?? "new"} aria-label="Automation name" name="name" defaultValue={editing?.name} placeholder="Welcome series" required maxLength={100} />
-						<DialogFooter><Button type="submit">{editing?.id ? "Save name" : "Create automation"}</Button></DialogFooter>
+						<Input key={editing?.id} aria-label="Automation name" name="name" defaultValue={editing?.name} placeholder="Welcome series" required maxLength={100} />
+						<DialogFooter><Button type="submit">Save name</Button></DialogFooter>
 					</form>
 					{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 				</DialogContent>
