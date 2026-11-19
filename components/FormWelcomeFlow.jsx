@@ -8,7 +8,7 @@ import { renderEmail } from "@/lib/render-email";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "@/lib/welcome-flow";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, resumeCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
@@ -170,9 +170,16 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 
 	function startPan(event) {
 		if (event.target !== event.currentTarget || event.button !== 0 || drag.current || panDrag.current || wireGesture.current) return;
+		event.preventDefault();
 		const transform = new DOMMatrix(getComputedStyle(canvas.current).transform);
-		setPan({ x: transform.m41, y: transform.m42 });
-		panDrag.current = { pointerId: event.pointerId, x: event.clientX - transform.m41, y: event.clientY - transform.m42 };
+		const scale = transform.a;
+		const edge = panWithinFlow(transform.m41, transform.m42, false, scale);
+		setCamera({ pan: { x: transform.m41, y: transform.m42 }, zoom: scale });
+		panDrag.current = {
+			pointerId: event.pointerId, scale,
+			x: event.clientX - resumeCanvasPan(transform.m41, edge.x),
+			y: event.clientY - resumeCanvasPan(transform.m42, edge.y),
+		};
 		event.currentTarget.setPointerCapture(event.pointerId);
 		setIsPanning(true);
 	}
@@ -180,14 +187,15 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	function movePan(event) {
 		const start = panDrag.current;
 		if (start?.pointerId !== event.pointerId) return;
-		setPan(panWithinFlow(event.clientX - start.x, event.clientY - start.y, true));
+		setPan(panWithinFlow(event.clientX - start.x, event.clientY - start.y, true, start.scale));
 	}
 
 	function finishPan(event) {
-		if (panDrag.current?.pointerId !== event.pointerId) return;
+		const start = panDrag.current;
+		if (start?.pointerId !== event.pointerId) return;
 		panDrag.current = null;
 		setIsPanning(false);
-		setPan((point) => panWithinFlow(point.x, point.y));
+		setPan((point) => panWithinFlow(point.x, point.y, false, start.scale));
 	}
 
 	function changeZoom(next, anchor) {

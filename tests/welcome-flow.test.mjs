@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, resumeCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -92,4 +92,13 @@ test("zooming keeps the world point at the viewport center fixed", () => {
 	const next = zoomCanvasAround(pan, 1, 1.5, center.x, center.y);
 	assert.equal((center.x - next.x) / 1.5, center.x - pan.x);
 	assert.equal((center.y - next.y) / 1.5, center.y - pan.y);
+});
+
+test("re-grabbing an overscrolled canvas keeps it where it is", () => {
+	for (const raw of [-100, 12, 100]) {
+		const visible = resistCanvasPan(raw, -40, 40);
+		const edge = Math.max(-40, Math.min(40, visible));
+		const resumed = resumeCanvasPan(visible, edge);
+		assert.ok(Math.abs(resistCanvasPan(resumed, -40, 40) - visible) < 0.001);
+	}
 });
