@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Clock, Focus, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from "lucide-react";
+import { Clock, Copy, Focus, GitBranch, Pencil, LogOut, Mail, MessageSquare, Repeat, Trash2, X } from "lucide-react";
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput,
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
+	sms: { label: "SMS", icon: MessageSquare },
 	delay: { label: "Delay", icon: Clock, field: "Hours" },
 	filter: { label: "Fork", icon: GitBranch, field: "Contact tag" },
 	repeat: { label: "Repeat twice", icon: Repeat },
@@ -140,11 +141,12 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 		}
 	}
 
-	function add(type) {
+	function add(type, source = null) {
+		if (flow.nodes.length >= MAX_FLOW_STEPS) return;
 		const id = crypto.randomUUID();
 		const x = 56;
 		const y = Math.max(-144, ...savedPositions.map((point) => point.y)) + 176;
-		change({ ...flow, nodes: [...flow.nodes, { id, type, x, y, value: type === "delay" ? "24" : "", next: "", other: "" }] });
+		change({ ...flow, nodes: [...flow.nodes, { value: type === "delay" ? "24" : "", ...source, id, type, x, y, next: "", other: "" }] });
 		setSelectedId(null);
 		revealNode({ x, y });
 	}
@@ -225,8 +227,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 			event.preventDefault();
 			setDeleteId(selectedNode.id);
 		}}>
-			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
-			<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
+			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no messages.</p>
+			<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
 				<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
 			</div>
 			<div className="grid min-w-0 border-y transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,1fr)_var(--node-settings-width)]" style={{ "--node-settings-width": selectedNode ? "min(32rem, 42%)" : "0px" }}>
@@ -255,7 +257,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 							const { label, icon: Icon } = TYPES[node.type];
 							const { x, y } = positions.get(node.id);
 							return (
-								<article key={node.id} className={`pointer-events-auto absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
+								<article key={node.id} className={`group pointer-events-auto absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
 									<div className="flex items-center gap-2">
 										<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
 											onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
@@ -266,9 +268,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 											onLostPointerCapture={(event) => finishMove(event, true)}
 										/>
 										<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
+										<Button variant="ghost" size="icon-sm" aria-label={`Duplicate step ${index + 1}`} title="Duplicate node"
+											disabled={flow.nodes.length >= MAX_FLOW_STEPS}
+											className="relative opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+											onClick={() => add(node.type, node)}><Copy aria-hidden="true" /></Button>
 										{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => setSelectedId(node.id)}><Pencil /> Edit</Button>}
 									</div>
-									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : ""}</p>
+									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : node.type === "sms" ? "No message yet" : ""}</p>
 									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
 										{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
 									</dl>}
@@ -293,6 +299,11 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 							<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
 						</div>
 						{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
+						{selectedNode.type === "sms" && <label className="grid gap-1 text-sm">
+							Message
+							<textarea className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm"
+								value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} />
+						</label>}
 						{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
 							{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
 							{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}

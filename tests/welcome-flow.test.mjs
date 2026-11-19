@@ -60,3 +60,11 @@ test("a later node can connect back to the first node", () => {
 	assert.deepEqual(simulateWelcomeFlow(linked, []).path.slice(0, 3).map(({ id }) => id), ["first", "last", "first"]);
 	assert.match(flowConnectionPath(176, 320, 176, 32, 56), /L 28 12 C 28/);
 });
+
+test("an SMS step carries its message and follows its outgoing connection", () => {
+	const { path } = simulateWelcomeFlow({ nodes: [
+		{ id: "sms", type: "sms", value: "Welcome!", next: "end" },
+		{ id: "end", type: "exit" },
+	] }, []);
+	assert.deepEqual(path.map(({ type, value }) => [type, value]), [["sms", "Welcome!"], ["exit", undefined]]);
+});
