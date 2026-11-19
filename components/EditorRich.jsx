@@ -19,6 +19,7 @@ import TooltipMergeTag from "@/components/TooltipMergeTag";
 import { isButtonLink } from "@/lib/buttons";
 import { BlockHandle } from "@/lib/editor-block-handle";
 import { ButtonBlock, findButton } from "@/lib/editor-button";
+import { Column, Columns } from "@/lib/editor-columns";
 import { Callout } from "@/lib/editor-callout";
 import { findWords } from "@/lib/editor-find";
 import { ImageAligned } from "@/lib/editor-image";
@@ -86,6 +87,8 @@ export default function EditorRich({
 				},
 			}),
 			Callout,
+			Columns,
+			Column,
 			ButtonBlock.configure({ newsletter, onEditLink: () => setIsEditingButtonLink(true) }),
 			HtmlBlock.configure({ newsletter }),
 			Section,

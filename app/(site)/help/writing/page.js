@@ -123,6 +123,10 @@ export default function WritingPage() {
 				screen, tap the picture): place it on the left, in the center or on the right, add its alt text, or delete it. Emails and your
 				website keep it where you put it.
 			</p>
+			<p>
+				Choose Image link in the picture toolbar to make the picture clickable. Clear the address and press Enter to remove the link. Drag the corner radius or vertical spacing icon up or right to increase it, and down or left to decrease it. Click to type a value.
+				Use Header or Footer to insert editable starter blocks. Choose Two columns, Three columns or Four columns to place blocks side by side. Click inside a column and type / to insert a block. MailCheap still adds its standard email footer.
+			</p>
 			<FigureHelp
 				src="/help/writing/picture-toolbar.webp"
 				alt="A picture in the editor with its toolbar: align left, center and right, Alt and delete."

@@ -44,7 +44,7 @@ test("editor issues get inline styles in emails", () => {
 	assert.ok(html.includes('<li><p style="margin:0;">One</p></li>'));
 	assert.ok(
 		html.includes(
-			'<img style="display:block;max-width:100%;height:auto;margin:24px auto;border-radius:8px;" src="https://cdn.example.com/chart.png"'
+			'<img style="display:block;max-width:100%;height:auto;margin:0 auto;" src="https://cdn.example.com/chart.png"'
 		)
 	);
 	assert.ok(html.includes(UNSUBSCRIBE_PLACEHOLDER), "the footer is added");
@@ -59,8 +59,8 @@ test("a picture placed left or right stays there in the email and on the archive
 	assert.ok(cleaned.includes('<img src="https://cdn.example.com/top.png" alt="" width="240" height="120">'), "an unknown alignment is dropped");
 
 	const email = renderEmail({ format: "rich", html, subject: "Pictures", newsletter: { name: "Field notes" } }).html;
-	const margins = Object.fromEntries([...email.matchAll(/margin:([^;]+);border-radius:8px;" src="https:\/\/cdn\.example\.com\/(\w+)\.png"/g)].map(([, margin, name]) => [name, margin]));
-	assert.deepEqual(margins, { left: "24px auto 24px 0", right: "24px 0 24px auto", center: "24px auto", top: "24px auto" });
+	const margins = Object.fromEntries([...email.matchAll(/margin:([^;]+);" src="https:\/\/cdn\.example\.com\/(\w+)\.png"/g)].map(([, margin, name]) => [name, margin]));
+	assert.deepEqual(margins, { left: "0 auto 0 0", right: "0 0 0 auto", center: "0 auto", top: "0 auto" });
 	assert.ok(!email.includes("data-align"), "emails carry the alignment in their styles");
 
 	assert.ok(renderIssueBody({ format: "rich", html }).html.includes('data-align="right"'), "the archive styles it from the attribute");
@@ -108,4 +108,27 @@ test("an empty editor document is not content", () => {
 
 test("editor issues take their thumbnail from the first image", () => {
 	assert.equal(firstImageUrl({ format: "rich", html: editorHtml }), "https://cdn.example.com/chart.png");
+});
+
+test("image links render in email and on the archive, and unsafe schemes are dropped", () => {
+	const picture = '<img src="https://cdn.example.com/chart.png" data-image-link="https://example.com/products?a=1&amp;b=2">';
+	const campaign = { format: "rich", html: picture, subject: "Products" };
+	for (const html of [renderEmail(campaign).html, renderIssueBody(campaign).html]) {
+		assert.match(html, /<a\b[^>]*href="https:\/\/example\.com\/products\?a=1&amp;b=2"[^>]*><img\b/);
+	}
+	assert.doesNotMatch(cleanRichHtml(picture.replace(/https:\/\/example\.com\/[^"]+/, "javascript:alert(1)")), /data-image-link/);
+});
+
+test("two columns keep their blocks and images can opt into spacing and corners", () => {
+	const html = '<table data-columns=""><tbody><tr><td data-column=""><img src="https://example.com/left.png" data-image-spacing="12" data-image-radius="6"></td><td data-column=""><img src="https://example.com/right.png"></td></tr></tbody></table>';
+	const email = renderEmail({ format: "rich", html }).html;
+	assert.match(email, /valign="top" style="padding:0;"><img[^>]+margin:12px auto 12px auto;border-radius:6px;[^>]+left\.png/);
+	assert.match(email, /valign="top" style="padding:0;"><img[^>]+margin:0 auto;"[^>]+right\.png/);
+});
+
+test("four-column layouts render with no gutters", () => {
+	const cells = ["One", "Two", "Three", "Four"].map((text) => `<td data-column=""><p>${text}</p></td>`).join("");
+	const html = renderEmail({ format: "rich", html: `<table data-columns=""><tbody><tr>${cells}</tr></tbody></table>` }).html;
+	assert.match(html, /cellpadding="0" cellspacing="0" style="table-layout:fixed;margin:0;border-collapse:collapse;"/);
+	assert.deepEqual([...html.matchAll(/<td valign="top" style="padding:0;"><p>(\w+)<\/p><\/td>/g)].map(([, text]) => text), ["One", "Two", "Three", "Four"]);
 });

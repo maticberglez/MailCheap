@@ -922,7 +922,7 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
   /* Tiptap wraps resizable images in a container that holds their handles. */
   & [data-resize-container] {
     justify-content: center;
-    margin: 2em 0;
+    margin: 0;
   }
   & [data-resize-container]:has(img[data-align="left"]) {
     justify-content: flex-start;
@@ -982,6 +982,20 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
   }
   & [data-resize-container] img {
     margin: 0;
+    margin-block: attr(data-image-spacing px, 0px);
+    border-radius: 0;
+    border-radius: attr(data-image-radius px, 0px);
+  }
+  & table[data-columns] {
+    table-layout: fixed;
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+  }
+  & td[data-column] {
+    padding: 0;
+    vertical-align: top;
+    outline: 1px dashed var(--border);
   }
   /* {{first_name}}, filled in per reader (lib/editor-merge-tags.js), darker under the pointer, which shows its tooltip
      (components/TooltipMergeTag.jsx). */

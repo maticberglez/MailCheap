@@ -514,6 +514,27 @@ const SLASH_ITEMS = [
 		icon: CodeXml,
 		run: (chain) => chain.insertContent({ type: "htmlBlock", attrs: { isNew: true } }),
 	},
+	{
+		title: "Header",
+		keywords: "prebuilt intro masthead",
+		icon: Heading1,
+		run: (chain) => chain.insertContent("<h1>Newsletter title</h1><p>Introduce this issue.</p><hr>"),
+	},
+	{
+		title: "Footer",
+		keywords: "prebuilt signoff",
+		icon: Minus,
+		run: (chain) => chain.insertContent("<hr><p>Thanks for reading.</p><p>See you in the next issue.</p>"),
+	},
+	...["Two", "Three", "Four"].map((label, index) => ({
+		title: `${label} columns`,
+		keywords: "layout grid left right products",
+		icon: SquareDashed,
+		run: (chain) => chain.insertContent({
+			type: "columns",
+			content: Array.from({ length: index + 2 }, () => ({ type: "column", content: [{ type: "paragraph" }] })),
+		}),
+	})),
 	// Part of the issue for some readers, or for its emails or its website only (components/BlockSection.jsx).
 	{
 		title: "Section",

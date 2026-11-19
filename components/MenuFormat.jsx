@@ -155,7 +155,7 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 	);
 }
 
-export function ButtonFormat({ label, isActive, type = "button", onClick, children }) {
+export function ButtonFormat({ label, isActive, type = "button", onClick, children, ...props }) {
 	return (
 		<button
 			type={type}
@@ -163,6 +163,7 @@ export function ButtonFormat({ label, isActive, type = "button", onClick, childr
 			title={label}
 			aria-pressed={isActive}
 			onClick={onClick}
+			{...props}
 			className={cn(
 				"grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground [&_svg]:size-4",
 				isActive && "bg-accent text-foreground"

@@ -16,7 +16,7 @@ const FIELDS = [
 	{ key: "birthday", label: "Birthday", type: "date" },
 ];
 // Four tiles a row.
-const BLOCKS = ["Text", "Heading 1", "Heading 2", "Heading 3", "Bulleted list", "Numbered list", "Quote", "Divider", "Image", "Button", "Box", "HTML"];
+const BLOCKS = ["Text", "Heading 1", "Heading 2", "Heading 3", "Bulleted list", "Numbered list", "Quote", "Divider", "Image", "Button", "Box", "HTML", "Header", "Footer", "Two columns", "Three columns", "Four columns"];
 const ADD = SLASH_ADD_FIELD.id;
 
 // What the arrows go through, in order: items by title, Add a field by its id.
@@ -55,19 +55,21 @@ test("the arrow keys go across the tiles and on to the next row, and down by row
 	assert.equal(go(3, "ArrowRight"), 4, "from the end of a row to the start of the next");
 	assert.equal(go(0, "ArrowLeft"), last, "round to Add a field");
 	assert.equal(go(0, "ArrowDown", "ArrowDown"), 8);
-	assert.equal(go(8, "ArrowDown"), 12, "from the last row to the section");
-	assert.equal(go(10, "ArrowDown"), 12, "from any tile of it");
-	assert.equal(go(12, "ArrowDown"), 13, "then the first name");
-	assert.equal(go(13, "ArrowDown"), 0, "and back to the top");
-	assert.equal(go(12, "ArrowUp"), 8);
-	assert.equal(go(15, "ArrowUp"), 12, "from a field to the section");
+	assert.equal(go(8, "ArrowDown"), 12, "from the third row to the last");
+	assert.equal(go(10, "ArrowDown"), 14);
+	assert.equal(go(12, "ArrowDown"), 16);
+	assert.equal(go(16, "ArrowDown"), 17, "from the last row to the section");
+	assert.equal(go(17, "ArrowDown"), 18, "then the first name");
+	assert.equal(go(18, "ArrowDown"), 0, "and back to the top");
+	assert.equal(go(17, "ArrowUp"), 16);
+	assert.equal(go(20, "ArrowUp"), 17, "from a field to the section");
 	assert.equal(go(1, "ArrowUp"), last, "up from the top to the fields");
-	assert.equal(go(13, "ArrowRight", "ArrowRight"), 15, "across the fields");
+	assert.equal(go(18, "ArrowRight", "ArrowRight"), 20, "across the fields");
 	assert.equal(moveInSlashMenu(menu, 0, "Enter"), null, "only the arrows");
 
 	const inSection = menuFor("", { inSection: true });
-	assert.equal(moveInSlashMenu(inSection, 9, "ArrowDown"), 12, "without a section, down to the fields");
-	assert.equal(moveInSlashMenu(inSection, 12, "ArrowUp"), 8);
+	assert.equal(moveInSlashMenu(inSection, 16, "ArrowDown"), 17, "without a section, down to the fields");
+	assert.equal(moveInSlashMenu(inSection, 17, "ArrowUp"), 16);
 
 	const found = menuFor("pl");
 	assert.equal(moveInSlashMenu(found, 0, "ArrowDown"), 1);
