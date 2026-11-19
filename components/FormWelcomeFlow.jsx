@@ -71,9 +71,9 @@ function EmailNodePreview({ node, addresses, editHref }) {
 					: <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
 			</div>
 			<div className="grid grid-cols-2 gap-2">
-				<Button variant="outline" size="sm" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
+				<Button variant="outline" className="h-11" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
 					title={`Send to ${addresses.testRecipient}`} onClick={send}><Mail />{isSending ? "Sending…" : "Send test to me"}</Button>
-				<Button size="sm" asChild><Link href={editHref}><Pencil /> Edit email</Link></Button>
+				<Button className="h-11" asChild><Link href={editHref}><Pencil /> Edit email</Link></Button>
 			</div>
 			{result && <p role="status" className="text-sm text-muted-foreground">{result}</p>}
 		</div>
@@ -372,21 +372,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 			event.preventDefault();
 			setDeleteId(selectedNode.id);
 		}}>
-			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[auto_minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
+			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
-				<div role="toolbar" aria-label="Automation tools" className="flex min-h-0 flex-col items-stretch gap-1.5 overflow-y-auto p-1.5 sm:p-3">
-					{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
-						<Button key={type} variant="outline" className={TOOL_BUTTON} title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
-							<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
-						</Button>
-					))}
-					<Button variant="outline" className={TOOL_BUTTON} title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
-						<Focus aria-hidden="true" /><span className="hidden sm:inline">Back to start</span>
-					</Button>
-					<Button variant="outline" className={TOOL_BUTTON} title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
-						<Play aria-hidden="true" /><span className="hidden sm:inline">Simulate</span>
-					</Button>
-				</div>
 				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
@@ -449,6 +436,19 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 						</div>}
 						{!flow.nodes.length && !placement && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
 					</div>
+					<div role="toolbar" aria-label="Automation tools" className="absolute top-3 bottom-16 left-3 z-10 flex w-max flex-col items-stretch gap-1.5 overflow-y-auto p-0.5 pointer-events-none [&_button]:pointer-events-auto">
+						{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
+							<Button key={type} variant="outline" className={TOOL_BUTTON} title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
+								<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
+							</Button>
+						))}
+						<Button variant="outline" className={TOOL_BUTTON} title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
+							<Focus aria-hidden="true" /><span className="hidden sm:inline">Back to start</span>
+						</Button>
+						<Button variant="outline" className={TOOL_BUTTON} title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
+							<Play aria-hidden="true" /><span className="hidden sm:inline">Simulate</span>
+						</Button>
+					</div>
 					<div className="absolute bottom-3 left-3 z-10 flex items-center gap-0.5 rounded-lg border bg-card p-0.5 shadow-sm">
 						<Button variant="ghost" size="icon-sm" aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => changeZoom(zoom - 0.1)}><Minus /></Button>
 						<Button variant="ghost" size="sm" aria-label="Reset zoom" onClick={() => changeZoom(1)}>{Math.round(zoom * 100)}%</Button>
@@ -461,7 +461,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					</div>}
 					{connecting && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">Select {connecting.key === "input" ? "an output dot" : "an input dot"}. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
 				</div>
-				<div className={`col-span-2 min-h-0 min-w-0 overflow-hidden lg:col-span-1 ${selectedNode ? "block" : "hidden lg:block"}`} inert={!selectedNode}>
+				<div className={`min-h-0 min-w-0 overflow-hidden ${selectedNode ? "block" : "hidden lg:block"}`} inert={!selectedNode}>
 					<aside aria-label="Node settings" aria-hidden={!selectedNode}
 						className={`m-2 max-h-[40dvh] min-w-0 overflow-y-auto rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none sm:m-3 lg:max-h-[calc(100%_-_1.5rem)] ${selectedNode ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
 						{selectedNode && <section className="space-y-3 p-4">
