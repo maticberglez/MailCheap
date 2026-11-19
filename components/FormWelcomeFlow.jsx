@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { Clock, Focus, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from "lucide-react";
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "@/lib/welcome-flow";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
@@ -37,6 +38,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const [result, setResult] = useState(null);
 	const [error, setError] = useState("");
 	const [selectedId, setSelectedId] = useState(null);
+	const [deleteId, setDeleteId] = useState(null);
 	const [connecting, setConnecting] = useState(null);
 	const wireGesture = useRef(null);
 	const suppressWireClick = useRef(false);
@@ -50,6 +52,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const [pan, setPan] = useState({ x: 0, y: 0 });
 	const [isPanning, setIsPanning] = useState(false);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
+	const deletingNode = flow.nodes.find(({ id }) => id === deleteId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
 
@@ -167,9 +170,20 @@ export default function FormWelcomeFlow({ storageKey }) {
 		change({ ...flow, nodes: flow.nodes.map((node) => node.id === id ? { ...node, ...values } : node) });
 	}
 
+	function confirmDelete() {
+		change({ ...flow, nodes: flow.nodes.filter(({ id }) => id !== deleteId).map((node) => ({
+			...node,
+			next: node.next === deleteId ? "" : node.next,
+			other: node.other === deleteId ? "" : node.other,
+		})) });
+		setDeleteId(null);
+		setSelectedId(null);
+		setConnecting(null);
+	}
+
 	function connectTo(id) {
 		if (connecting && connecting.id !== id) {
-			update(connecting.id, { [connecting.key]: id });
+			change(connectFlowNodes(flow, connecting.id, connecting.key, id));
 			setConnecting(null);
 		}
 	}
@@ -201,7 +215,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 	function finishWire(event) {
 		const preview = trackWire(event);
 		if (!preview) return;
-		if (preview.targetId) update(preview.id, { [preview.key]: preview.targetId });
+		if (preview.targetId) change(connectFlowNodes(flow, preview.id, preview.key, preview.targetId));
 		setConnecting(null);
 		setWire(null);
 	}
@@ -222,15 +236,20 @@ export default function FormWelcomeFlow({ storageKey }) {
 	}
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-4" onKeyDown={(event) => {
+			if (event.key !== "Backspace" || event.defaultPrevented || event.isComposing || !selectedNode || deleteId ||
+				event.target.closest("input, textarea, select, [contenteditable]")) return;
+			event.preventDefault();
+			setDeleteId(selectedNode.id);
+		}}>
 			<p className="px-3 text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
 			{!loaded ? <Button onClick={load}>Open welcome flow draft</Button> : (
 				<>
 					<div className="flex flex-wrap gap-2 px-3">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
 						<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
 					</div>
-					<div className="relative isolate overflow-hidden border-y">
-						<div ref={viewport} aria-label="Automation playground" className={`relative h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
+					<div className="grid min-w-0 border-y transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[minmax(0,1fr)_var(--node-settings-width)]" style={{ "--node-settings-width": selectedNode ? "min(32rem, 42%)" : "0px" }}>
+						<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 h-[calc(100dvh-7rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
 							style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
 							onPointerDown={startPan} onPointerMove={movePan} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
 							<div ref={canvas} className={`pointer-events-none absolute inset-0 ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
@@ -243,11 +262,12 @@ export default function FormWelcomeFlow({ storageKey }) {
 										const y = from.y + NODE_HEIGHT;
 										const endX = to.x + NODE_WIDTH / 2;
 										const endY = to.y;
-										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, Math.min(from.x, to.x))} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
 									}))}
 									{wire && positions.has(wire.id) && <path d={flowConnectionPath(
 										positions.get(wire.id).x + outputX(flow.nodes.find(({ id }) => id === wire.id), wire.key),
-										positions.get(wire.id).y + NODE_HEIGHT, wire.x, wire.y
+										positions.get(wire.id).y + NODE_HEIGHT, wire.x, wire.y,
+										Math.min(positions.get(wire.id).x, positions.get(wire.targetId)?.x ?? wire.x - NODE_WIDTH / 2)
 									)} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
 								</svg>
 								{flow.nodes.map((node, index) => {
@@ -284,18 +304,11 @@ export default function FormWelcomeFlow({ storageKey }) {
 							</div>
 						</div>
 						<aside aria-label="Node settings" inert={!selectedNode} aria-hidden={!selectedNode}
-							className={`absolute inset-y-0 right-0 z-20 w-full max-w-lg overflow-y-auto border-l bg-card shadow-lg transition-transform duration-300 ease-out motion-reduce:transition-none ${selectedNode ? "translate-x-0" : "translate-x-full"}`}>
+							className={`min-w-0 overflow-y-auto bg-card lg:h-[calc(100dvh-7rem)] ${selectedNode ? "border-t lg:border-t-0 lg:border-l" : "hidden lg:block"}`}>
 							{selectedNode && <section className="space-y-3 p-4">
 								<div className="flex items-center gap-1">
 									<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
-									<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => {
-										const id = selectedNode.id;
-										change({ ...flow, nodes: flow.nodes.filter((node) => node.id !== id).map((node) => ({
-											...node, next: node.next === id ? "" : node.next, other: node.other === id ? "" : node.other,
-										})) });
-										setSelectedId(null);
-										setConnecting(null);
-									}}><Trash2 /></Button>
+									<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
 									<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
 								</div>
 								{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
@@ -330,6 +343,16 @@ export default function FormWelcomeFlow({ storageKey }) {
 					</section>
 				</>
 			)}
+			<Dialog open={Boolean(deletingNode)} onOpenChange={(open) => !open && setDeleteId(null)}>
+				<DialogContent>
+					<DialogTitle>Delete {deletingNode ? TYPES[deletingNode.type].label.toLowerCase() : "node"}?</DialogTitle>
+					<DialogDescription>This removes the node and its connections from the draft.</DialogDescription>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+						<Button variant="destructive" onClick={confirmDelete}>Delete node</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 		</div>
 	);

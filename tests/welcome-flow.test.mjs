@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -35,7 +35,7 @@ test("connections use smooth curves above, below and level with their source", (
 	for (const y of [60, 120, 180]) {
 		const path = flowConnectionPath(100, 120, 180, y);
 		assert.match(path, /^M 100 120 C /);
-		assert.equal(path.match(/ C /g).length, 2);
+		assert.equal(path.match(/ C /g).length, y < 120 ? 2 : 1);
 		assert.ok(path.endsWith(`180 ${y}`));
 	}
 });
@@ -52,4 +52,11 @@ test("a wire snaps to the closest input inside the snap radius", () => {
 	const inputs = [{ id: "first", x: 10, y: 30 }, { id: "second", x: 40, y: 30 }];
 	assert.equal(nearestFlowInput(inputs, 34, 28)?.id, "second");
 	assert.equal(nearestFlowInput(inputs, 100, 100), null);
+});
+
+test("a later node can connect back to the first node", () => {
+	const flow = { nodes: [{ id: "first", next: "last" }, { id: "last" }] };
+	const linked = connectFlowNodes(flow, "last", "next", "first");
+	assert.deepEqual(simulateWelcomeFlow(linked, []).path.slice(0, 3).map(({ id }) => id), ["first", "last", "first"]);
+	assert.match(flowConnectionPath(176, 320, 176, 32, 56), /L 28 12 C 28/);
 });
