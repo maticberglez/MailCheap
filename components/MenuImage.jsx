@@ -8,6 +8,7 @@ import { AlignCenter, AlignLeft, AlignRight, Copy, CornerDownLeft, Link2, MoveVe
 import { ButtonFormat } from "@/components/MenuFormat";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { deleteBlock } from "@/lib/editor-undo-delete";
+import { normalizeUrl } from "@/lib/links";
 
 // A toolbar for the picture under the pointer, or the selected one on touch screens and from the keyboard: where it
 // sits in the column (lib/editor-image.js), its alt text and a way to remove it. It sits inside the picture's top edge,
@@ -152,7 +153,14 @@ export default function MenuImage({ editor }) {
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
-							saveField(new FormData(event.currentTarget).get(field));
+							const input = event.currentTarget.elements.namedItem(field);
+							const value = field === "link" ? normalizeUrl(input.value) : input.value;
+							if (field === "link" && value && (!/^https?:\/\//i.test(value) || !URL.canParse(value))) {
+								input.setCustomValidity("Enter a valid web address");
+								input.reportValidity();
+								return;
+							}
+							saveField(value);
 							finishField();
 						}}
 						onMouseDown={(event) => event.target instanceof HTMLInputElement || event.preventDefault()}
@@ -161,8 +169,10 @@ export default function MenuImage({ editor }) {
 						<span className="pl-2 text-xs font-semibold text-muted-foreground">{FIELD_LABELS[field]}</span>
 						<input
 							name={field}
-							type={field === "link" ? "url" : "text"}
-							pattern={field === "link" ? "https?://.+" : field === "alt" ? undefined : "[0-9]{1,3}"}
+							type="text"
+							inputMode={field === "link" ? "url" : undefined}
+							pattern={field === "radius" || field === "spacing" ? "[0-9]{1,3}" : undefined}
+							onInput={(event) => event.currentTarget.setCustomValidity("")}
 							autoFocus
 							defaultValue={target[field] ?? ""}
 							placeholder={field === "link" ? "https://example.com" : field === "alt" ? "Describe this picture" : "0 px"}
