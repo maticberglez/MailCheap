@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, simulateWelcomeFlow } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, flowConnectionPath, simulateWelcomeFlow } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -29,4 +29,13 @@ test("accidental cycles have a fixed simulation limit", () => {
 	}, []);
 	assert.equal(path.length, MAX_FLOW_STEPS * 4);
 	assert.match(reason, /step limit/);
+});
+
+test("connections use smooth curves above, below and level with their source", () => {
+	for (const y of [60, 120, 180]) {
+		const path = flowConnectionPath(100, 120, 180, y);
+		assert.match(path, /^M 100 120 C /);
+		assert.equal(path.match(/ C /g).length, 2);
+		assert.ok(path.endsWith(`180 ${y}`));
+	}
 });

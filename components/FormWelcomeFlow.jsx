@@ -5,7 +5,7 @@ import { Clock, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from "lucid
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, simulateWelcomeFlow } from "@/lib/welcome-flow";
+import { MAX_FLOW_STEPS, flowConnectionPath, simulateWelcomeFlow } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
@@ -40,10 +40,45 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const [position, setPosition] = useState(null);
 	const drag = useRef(null);
 	const moved = useRef(false);
+	const canvas = useRef(null);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
-	const canvasWidth = Math.max(360, ...[...positions.values()].map(({ x }) => x + NODE_WIDTH + 48));
-	const canvasHeight = Math.max(480, ...[...positions.values()].map(({ y }) => y + NODE_HEIGHT + 48));
+	const savedPositions = flow.nodes.map(nodePosition);
+	const canvasWidth = Math.max(1000, ...savedPositions.map(({ x }) => x + NODE_WIDTH + 180));
+	const canvasHeight = Math.max(800, (flow.nodes.length + 2) * 176, ...savedPositions.map(({ y }) => y + NODE_HEIGHT + 80));
+
+	function startMove(event, id, x, y) {
+		if (event.button !== 0 || drag.current || !canvas.current) return;
+		const bounds = canvas.current.getBoundingClientRect();
+		moved.current = false;
+		drag.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: event.clientX - bounds.left - x, offsetY: event.clientY - bounds.top - y };
+		event.currentTarget.setPointerCapture(event.pointerId);
+	}
+
+	function move(event) {
+		const current = drag.current;
+		if (!current || current.pointerId !== event.pointerId || !canvas.current) return;
+		if (!moved.current && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 4) return;
+		moved.current = true;
+		current.pointer = { clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId };
+		const bounds = canvas.current.getBoundingClientRect();
+		const x = Math.max(24, Math.min(canvas.current.clientWidth - NODE_WIDTH - 24, event.clientX - bounds.left - current.offsetX));
+		const y = Math.max(24, Math.min(canvas.current.clientHeight - NODE_HEIGHT - 24, event.clientY - bounds.top - current.offsetY));
+		current.position = { id: current.id, x, y };
+		setPosition(current.position);
+	}
+
+	function finishMove(event, save) {
+		const current = drag.current;
+		if (!current || current.pointerId !== event.pointerId) return;
+		drag.current = null;
+		if (save && current.position) {
+			const { id, x, y } = current.position;
+			update(id, { x, y });
+		}
+		setPosition(null);
+	}
+
 
 	function load() {
 		try {
@@ -97,8 +132,8 @@ export default function FormWelcomeFlow({ storageKey }) {
 				<>
 					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}</div>
 					<div className="relative isolate overflow-hidden rounded-xl border">
-						<div className="h-[65vh] overflow-auto bg-muted/30">
-							<div className="relative min-w-full bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px]" style={{ width: canvasWidth, height: canvasHeight }}>
+						<div className="h-[calc(100dvh-9rem)] min-h-96 overflow-auto bg-muted/30 [overflow-anchor:none]" onScroll={() => { if (drag.current?.pointer) move(drag.current.pointer); }}>
+							<div ref={canvas} className="relative min-w-full bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px]" style={{ width: canvasWidth, height: canvasHeight }}>
 								<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full">
 									{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 										const from = positions.get(node.id);
@@ -108,11 +143,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 										const y = from.y + NODE_HEIGHT;
 										const endX = to.x + NODE_WIDTH / 2;
 										const endY = to.y;
-										const bend = Math.max(28, Math.abs(endY - y) / 2);
-										const route = endY > y
-											? `M ${x} ${y} C ${x} ${y + bend}, ${endX} ${endY - bend}, ${endX} ${endY}`
-											: `M ${x} ${y} V ${y + 20} H ${Math.max(2, Math.min(from.x, to.x) - 20)} V ${endY - 20} H ${endX} V ${endY}`;
-										return <path key={`${node.id}-${key}`} d={route} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+										return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY)} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
 									}))}
 								</svg>
 								{flow.nodes.map((node, index) => {
@@ -123,24 +154,11 @@ export default function FormWelcomeFlow({ storageKey }) {
 											<div className="flex items-center gap-2">
 												<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
 													onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
-													onPointerDown={(event) => {
-														if (event.button !== 0) return;
-														moved.current = false;
-															drag.current = { x, y, startX: event.clientX, startY: event.clientY };
-														event.currentTarget.setPointerCapture(event.pointerId);
-													}}
-													onPointerMove={(event) => {
-														if (!drag.current) return;
-														const { x, y, startX, startY } = drag.current;
-															if (!moved.current && Math.hypot(event.clientX - startX, event.clientY - startY) < 4) return;
-															moved.current = true;
-														setPosition({ id: node.id, x: Math.max(8, x + event.clientX - startX), y: Math.max(8, y + event.clientY - startY) });
-													}}
-													onPointerUp={(event) => {
-														const start = drag.current;
-														if (start && moved.current) update(node.id, { x: Math.max(8, start.x + event.clientX - start.startX), y: Math.max(8, start.y + event.clientY - start.startY) });
-													}}
-													onLostPointerCapture={() => { drag.current = null; setPosition(null); }}
+													onPointerDown={(event) => startMove(event, node.id, x, y)}
+													onPointerMove={move}
+													onPointerUp={(event) => { move(event); finishMove(event, true); }}
+													onPointerCancel={(event) => finishMove(event, false)}
+													onLostPointerCapture={(event) => finishMove(event, true)}
 												/>
 												<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
 												{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => setSelectedId(node.id)}><Pencil /> Edit</Button>}
