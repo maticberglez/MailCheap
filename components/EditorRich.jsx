@@ -116,7 +116,7 @@ export default function EditorRich({
 		],
 		editorProps: {
 			// With a mouse, the left padding holds the blocks' drag handle (lib/editor-block-handle.js).
-			attributes: { class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:pl-12`, "aria-label": "Content" },
+			attributes: { class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:px-12`, "aria-label": "Content" },
 			handleDoubleClickOn: (view, _pos, node, nodePos, _event, direct) => {
 				if (!direct || !view.editable || node.type.name !== "image" || node.attrs.src?.startsWith("blob:")) return false;
 				view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)));
