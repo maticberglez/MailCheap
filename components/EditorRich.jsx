@@ -1,5 +1,6 @@
 "use client";
 
+import { NodeSelection } from "@tiptap/pm/state";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import FileHandler from "@tiptap/extension-file-handler";
@@ -60,7 +61,7 @@ export default function EditorRich({
 }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isEditingButtonLink, setIsEditingButtonLink] = useState(false);
-	const [isPickingImage, setIsPickingImage] = useState(false);
+	const [imagePicker, setImagePicker] = useState(null);
 	const [isAddingField, setIsAddingField] = useState(false);
 	// The block whose dot says what it's about, once brought into view.
 	const [pinned, setPinned] = useState(null);
@@ -106,7 +107,7 @@ export default function EditorRich({
 				onPaste: (current, files) => insertImages(current, files),
 			}),
 			SlashCommand.configure({
-				onPickImage: () => setIsPickingImage(true),
+				onPickImage: () => setImagePicker({}),
 				onAddField: () => setIsAddingField(true),
 				contactFields,
 				withSections: Boolean(sections),
@@ -116,6 +117,12 @@ export default function EditorRich({
 		editorProps: {
 			// With a mouse, the left padding holds the blocks' drag handle (lib/editor-block-handle.js).
 			attributes: { class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:pl-12`, "aria-label": "Content" },
+			handleDoubleClickOn: (view, _pos, node, nodePos, _event, direct) => {
+				if (!direct || !view.editable || node.type.name !== "image" || node.attrs.src?.startsWith("blob:")) return false;
+				view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)));
+				setImagePicker({ replaceUrl: node.attrs.src });
+				return true;
+			},
 			// In a button, ⌘K opens the button's own link (lib/editor-button.js).
 			handleKeyDown: (view, event) => {
 				const isLinkShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
@@ -185,9 +192,10 @@ export default function EditorRich({
 			<MenuImage editor={editor} />
 			<TooltipMergeTag editor={editor} contactFields={contactFields} />
 			<DialogImagePicker
-				open={isPickingImage}
-				onOpenChange={setIsPickingImage}
-				onSelect={(image) => insertImage(editor, image)}
+				open={Boolean(imagePicker)}
+				currentUrl={imagePicker?.replaceUrl}
+				onOpenChange={(open) => !open && setImagePicker(null)}
+				onSelect={(image) => imagePicker?.replaceUrl ? replaceImage(editor, imagePicker.replaceUrl, image) : insertImage(editor, image)}
 			/>
 			<ProviderContactOptions fields={contactFields} tags={NO_TAGS}>
 				<DialogContactFields
@@ -224,6 +232,18 @@ function insertImage(editor, { url, width, height }) {
 	if (editor.isDestroyed) return;
 	const size = width && height ? getDisplaySize({ width, height }) : {};
 	editor.chain().focus().insertContent({ type: "image", attrs: { src: url, alt: "", ...size } }).run();
+}
+
+function replaceImage(editor, expectedUrl, { url, width, height }) {
+	if (editor.isDestroyed) return;
+	const selection = editor.state.selection;
+	if (!(selection instanceof NodeSelection) || selection.node.type.name !== "image" || selection.node.attrs.src !== expectedUrl) return;
+	const displayWidth = selection.node.attrs.width || (width && height ? getDisplaySize({ width, height }).width : null);
+	editor.chain().focus().updateAttributes("image", {
+		src: url,
+		width: displayWidth,
+		height: displayWidth && width && height ? Math.round((height * displayWidth) / width) : null,
+	}).run();
 }
 
 // Each picture shows right away from the local file and switches to its CDN URL once uploaded. The
