@@ -129,6 +129,10 @@ export default function NewslettersPage() {
 
 			<h2 id="welcome-email">Welcome email</h2>
 			<p>
+				Use <LinkApp href="/automations">Automations</LinkApp> to draft a welcome sequence. Connect steps and simulate which
+				ones a contact would reach using sample tags. Drafts are saved in this browser. Simulation sends no email.
+			</p>
+			<p>
 				An email each new subscriber gets when they join, written in the same{" "}
 				<Link href={getHelpHref("writing", "editor")}>editor</Link> as your issues, with pictures, buttons and their{" "}
 				<Link href={getHelpHref("writing", "first-name")}>first name</Link>. On the{" "}

@@ -43,7 +43,7 @@ const NEW_SEGMENT = "new";
 const LINK_ITEM =
 	"inline rounded-sm p-0 font-normal whitespace-nowrap text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-150 hover:decoration-foreground focus:bg-transparent focus:text-foreground focus:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring/50";
 // A section holds any of the issue's blocks but another section (lib/sections.js).
-const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | orderedList | horizontalRule | image | callout | button | htmlBlock)+";
+const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | orderedList | horizontalRule | image | columns | callout | button | htmlBlock)+";
 
 // Part of an issue only some readers get, or only its emails or its website show (lib/sections.js): an outline around
 // its blocks, and a label saying who and where, which opens its settings. Picking readers makes it email only, as the

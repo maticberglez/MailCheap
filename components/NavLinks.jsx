@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Globe, KeyRound, LayoutGrid, Send, Settings, Shield, Users } from "lucide-react";
+import { GitBranch, Globe, KeyRound, LayoutGrid, Send, Settings, Shield, Users } from "lucide-react";
 import { OWNER_ROLE, hasRole } from "@/lib/team-rules";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +56,7 @@ const GROUP_CLASS = "flex flex-col gap-0.5 not-first:border-t not-first:border-b
 const NEWSLETTER_ITEMS = [
 	{ href: "/", label: "Overview", icon: LayoutGrid },
 	{ href: "/campaigns", label: "Campaigns", icon: Send },
+	{ href: "/automations", label: "Automations", icon: GitBranch, role: "admin" },
 	{ href: "/contacts", label: "Contacts", icon: Users },
 	{ href: "/newsletters", label: "Settings", icon: Settings, role: "admin" },
 ];
