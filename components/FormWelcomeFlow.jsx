@@ -406,7 +406,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		}}>
 			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
-				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning ? "" : "transition-[background-position,background-size] ease-out motion-reduce:transition-none"} ${isWheelZooming ? "duration-100" : "duration-300"}`}
+				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning ? "transition-none" : `transition-[background-position,background-size] ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
 						if (placement && event.target === event.currentTarget && event.button === 0) place(placementPoint(event.clientX, event.clientY));
@@ -416,7 +416,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 						if (placement) setPlacement({ ...placement, ...placementPoint(event.clientX, event.clientY) });
 						else movePan(event);
 					}} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
-					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning ? "" : "transition-transform ease-out motion-reduce:transition-none"} ${isWheelZooming ? "duration-100" : "duration-300"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning ? "transition-none" : `transition-transform ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
 						<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
 							{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 								const from = positions.get(node.id);
