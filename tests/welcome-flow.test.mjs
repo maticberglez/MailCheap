@@ -82,7 +82,9 @@ test("starting a connection at an input still saves the wire from output to inpu
 test("reverse connections use the gap between separated cards", () => {
 	const lane = reverseWireLane(446, 142, 240);
 	assert.equal(lane, 414);
-	assert.match(flowConnectionPath(566, 286, 262, 98, lane), /C 442 [^,]+, 386 [^,]+, 386 78 C 386/);
+	const path = flowConnectionPath(566, 286, 262, 98, lane);
+	assert.match(path, /^M 566 286 C 566 [^,]+, 262 [^,]+, 262 98$/);
+	assert.equal(path.match(/ C /g).length, 1);
 	assert.equal(reverseWireLane(142, 142, 240), 114);
 });
 
