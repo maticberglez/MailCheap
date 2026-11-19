@@ -4,8 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useEditorState } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
-import { AlignCenter, AlignLeft, AlignRight, CornerDownLeft, Link2, MoveVertical, SquareRoundCorner, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Copy, CornerDownLeft, Link2, MoveVertical, SquareRoundCorner, Trash2 } from "lucide-react";
 import { ButtonFormat } from "@/components/MenuFormat";
+import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { deleteBlock } from "@/lib/editor-undo-delete";
 
 // A toolbar for the picture under the pointer, or the selected one on touch screens and from the keyboard: where it
@@ -207,6 +208,12 @@ export default function MenuImage({ editor }) {
 							onLostPointerCapture={() => adjustmentEvents("spacing").onLostPointerCapture()}
 							onClick={(event) => adjustmentEvents("spacing").onClick(event)}>
 							<MoveVertical aria-hidden="true" />
+						</ButtonFormat>
+						<ButtonFormat label="Duplicate image" onClick={() => {
+							const tr = duplicateBlock(editor.state, target.pos);
+							if (tr) editor.view.dispatch(tr);
+						}}>
+							<Copy aria-hidden="true" />
 						</ButtonFormat>
 						<ButtonFormat label="Delete image" onClick={remove}>
 							<Trash2 />

@@ -34,6 +34,7 @@ export async function saveCampaign(id, values) {
 		id: String(id),
 		subject: String(values?.subject ?? "").slice(0, MAX_SUBJECT_LENGTH),
 		previewText: String(values?.previewText ?? "").slice(0, MAX_PREVIEW_TEXT_LENGTH),
+		...(values?.replyTo !== undefined && { replyTo: values.replyTo }),
 		content: String(values?.body ?? ""),
 		...(values?.format && { format: values.format }),
 		...(revision !== undefined && { revision }),
@@ -48,8 +49,8 @@ export async function saveCampaign(id, values) {
 export async function loadDraft(id) {
 	const { output, failure } = await runDashboardAction("get_campaign", { id: String(id) });
 	if (failure) return toFormError(failure);
-	const { subject, previewText, content, format, revision } = output;
-	return { subject, previewText, content, format, revision };
+	const { subject, previewText, replyTo, content, format, revision } = output;
+	return { subject, previewText, replyTo, content, format, revision };
 }
 
 // Who the draft goes to: a segment's ID, or null for every active contact. The page counts its audience again.

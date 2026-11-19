@@ -16,3 +16,17 @@ test("image appearance keeps the node view's inline resize styles untouched", ()
 	assert.equal(attrs["data-image-spacing"], "12");
 	assert.equal(attrs.style, undefined);
 });
+
+test("duplicating a nested image inserts a copy in the same column", async () => {
+	const { EditorState } = await import("@tiptap/pm/state");
+	const { duplicateBlock } = await import("../lib/editor-duplicate-block.js");
+	const { Column, Columns } = await import("../lib/editor-columns.js");
+	const schema = getSchema([StarterKit, ImageAligned, Columns, Column]);
+	const image = schema.nodes.image.create({ src: "https://example.com/photo.png", width: 240, link: "https://example.com/item" });
+	const column = schema.nodes.column.create(null, image);
+	const doc = schema.nodes.doc.create(null, schema.nodes.columns.create(null, [column, column]));
+	const tr = duplicateBlock(EditorState.create({ doc }), 2);
+	assert.equal(tr.doc.firstChild.firstChild.childCount, 2);
+	assert.ok(tr.doc.firstChild.firstChild.lastChild.eq(image));
+	assert.equal(tr.doc.firstChild.lastChild.childCount, 1);
+});

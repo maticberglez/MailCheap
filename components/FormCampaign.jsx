@@ -147,6 +147,7 @@ export default function FormCampaign({
 	const [values, setValues] = useState({
 		subject: campaign.subject,
 		previewText: campaign.previewText,
+		replyTo: campaign.replyTo ?? "",
 		body: initialBody,
 	});
 	const editorRef = useRef(null);
@@ -173,6 +174,7 @@ export default function FormCampaign({
 		() => ({
 			subject: subjectRef.current?.value ?? valuesRef.current.subject,
 			previewText: previewTextRef.current?.value ?? valuesRef.current.previewText,
+			replyTo: valuesRef.current.replyTo,
 			body: editorRef.current?.getEditor()?.getHTML() ?? valuesRef.current.body,
 		}),
 		[]
@@ -558,6 +560,17 @@ export default function FormCampaign({
 									placeholder="Shown after the subject in inboxes"
 									aria-label="Preview text"
 									maxLength={300}
+									className="h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+								/>
+							</RowCampaign>
+							<RowCampaign label="Reply to">
+								<input
+									type="email"
+									value={values.replyTo}
+									onChange={update("replyTo")}
+									placeholder="Use the author’s email"
+									aria-label="Reply to"
+									maxLength={254}
 									className="h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
 								/>
 							</RowCampaign>
