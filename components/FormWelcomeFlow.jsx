@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, MessageSquare, Repeat, Trash2, X } from "lucide-react";
-import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,24 @@ const TYPES = {
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 112;
 const PAN_MARGIN = 220;
-const EMAIL_FIELDS = [["value", "Subject"], ["previewText", "Preview text"], ["fromName", "Sender name"], ["fromEmail", "Sender email"], ["replyTo", "Reply to"]];
+const EMAIL_FIELDS = [
+	["value", "Subject", "Welcome to our newsletter"],
+	["previewText", "Preview text", "A quick hello and what to expect"],
+	["fromName", "Sender name", "Your newsletter name"],
+];
+
+function AddressField({ label, placeholder, options, value, onChange }) {
+	return (
+		<label className="grid gap-1 text-sm">
+			{label}
+			<select className="h-9 w-full min-w-0 rounded-md border bg-background px-3" value={value} onChange={(event) => onChange(event.target.value)}>
+				<option value="">{placeholder}</option>
+				{value && !options.includes(value) && <option value={value} disabled>{value} (unavailable)</option>}
+				{options.map((email) => <option key={email} value={email}>{email}</option>)}
+			</select>
+		</label>
+	);
+}
 
 function nodePosition(node, index) {
 	return { x: node.x ?? 56, y: node.y ?? 32 + index * 176 };
@@ -30,13 +47,13 @@ function outputX(node, key) {
 	return key === "next" ? NODE_WIDTH / 3 : NODE_WIDTH * 2 / 3;
 }
 
-export default function FormWelcomeFlow({ storageKey, initialFlow }) {
+export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, selectedNodeId, addresses }) {
 	const [flow, setFlow] = useState(initialFlow);
 	const [tags, setTags] = useState("");
 	const [isSimulationOpen, setIsSimulationOpen] = useState(false);
 	const [result, setResult] = useState(null);
 	const [error, setError] = useState("");
-	const [selectedId, setSelectedId] = useState(null);
+	const [selectedId, setSelectedId] = useState(selectedNodeId);
 	const [deleteId, setDeleteId] = useState(null);
 	const [connecting, setConnecting] = useState(null);
 	const wireGesture = useRef(null);
@@ -50,7 +67,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 	const viewport = useRef(null);
 	const panDrag = useRef(null);
 	const [pan, setPan] = useState(() => {
-		const first = nodePosition(initialFlow.nodes[0] ?? {}, 0);
+		const index = Math.max(0, initialFlow.nodes.findIndex(({ id }) => id === selectedNodeId));
+		const first = nodePosition(initialFlow.nodes[index] ?? {}, index);
 		return { x: 56 - first.x, y: 32 - first.y };
 	});
 	const [isPanning, setIsPanning] = useState(false);
@@ -268,7 +286,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
 				<div role="toolbar" aria-label="Automation tools" className="flex min-h-0 flex-col items-stretch gap-1.5 overflow-y-auto p-1.5 sm:p-3">
 					{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
-						<Button key={type} variant="outline" size="sm" className="justify-start" title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
+						<Button key={type} variant="outline" className="h-11 justify-start px-2.5 text-sm sm:min-w-28 sm:px-3 [&_svg]:size-5" title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
 							<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
 						</Button>
 					))}
@@ -323,12 +341,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 											disabled={flow.nodes.length >= MAX_FLOW_STEPS}
 											className="relative opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
 											onClick={() => add(node.type, node)}><Copy aria-hidden="true" /></Button>
-										{node.type === "email" && <Button variant="ghost" size="sm" className="relative" onClick={() => setSelectedId(node.id)}><Pencil /> Edit</Button>}
+
 									</div>
 									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : node.type === "sms" ? "No message yet" : ""}</p>
 									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
 										{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
 									</dl>}
+									{index === 0 && <span className="pointer-events-none absolute -top-6 left-0 rounded bg-background px-1.5 text-xs font-medium text-muted-foreground">Subscriber joins</span>}
 									{port(node, "input", `Input for step ${index + 1}`)}
 									{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
 									{(node.type === "filter" || node.type === "repeat") && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : "to repeat from"}`)}
@@ -366,13 +385,23 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 								{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
 								{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
 							</div>}
+							{selectedNode.id === flow.nodes[0]?.id && <fieldset className="grid gap-3 border-b pb-3">
+								<legend className="mb-2 text-sm font-medium">Trigger · Subscriber joins</legend>
+								<label className="grid gap-1 text-sm">Required entry tag<Input placeholder="Any subscriber" value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
+								<label className="grid gap-1 text-sm">Exit if tagged<Input placeholder="For example, customer" value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
+							</fieldset>}
 							{selectedNode.type === "email" && <>
-								<div className="grid gap-3 sm:grid-cols-2">
-									{EMAIL_FIELDS.map(([key, label]) => <label key={key} className="grid gap-1 text-sm">{label}<Input value={selectedNode[key] ?? ""} type={key === "fromEmail" || key === "replyTo" ? "email" : "text"} onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} /></label>)}
+								<div className="grid gap-3">
+									{EMAIL_FIELDS.map(([key, label, placeholder]) => <label key={key} className="grid gap-1 text-sm">
+										{label}<Input value={selectedNode[key] ?? ""} placeholder={key === "fromName" ? addresses.senderName || placeholder : placeholder}
+											onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} />
+									</label>)}
+									<AddressField label="Sender email" placeholder={addresses.sender || "Select a sender address"} options={addresses.fromEmails}
+										value={selectedNode.fromEmail ?? ""} onChange={(fromEmail) => update(selectedNode.id, { fromEmail })} />
+									<AddressField label="Reply to" placeholder="Use the sender address" options={addresses.replyEmails}
+										value={selectedNode.replyTo ?? ""} onChange={(replyTo) => update(selectedNode.id, { replyTo })} />
 								</div>
-								<div className="overflow-hidden rounded-lg border">
-									<EditorRich key={selectedNode.id} content={selectedNode.html ?? ""} onChange={(html) => update(selectedNode.id, { html })} minHeight="min-h-64" />
-								</div>
+								<Button asChild><Link href={`${editPath}/${selectedNode.id}`}><Pencil /> Edit email</Link></Button>
 							</>}
 						</section>}
 					</aside>
@@ -383,11 +412,6 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 				<DialogContent className="sm:max-w-lg">
 					<DialogTitle>Simulate flow</DialogTitle>
 					<DialogDescription>Try the flow with sample contact tags. Simulation sends no messages.</DialogDescription>
-					<section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
-						<h2 className="font-medium sm:col-span-2">Trigger · Subscriber joins</h2>
-						<label className="grid gap-1 text-sm">Required entry tag<Input value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
-						<label className="grid gap-1 text-sm">Exit if tagged<Input value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
-					</section>
 					<section className="space-y-3 rounded-xl border bg-card p-4">
 						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
 						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>

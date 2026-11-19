@@ -7,6 +7,7 @@ import { ArrowLeft, Copy, GitBranch, MoreHorizontal, PenLine, Plus, Trash2 } fro
 import { DialogNewDraft } from "@/components/DialogNewCampaign";
 import BadgeStatus from "@/components/BadgeStatus";
 import TextEmpty from "@/components/TextEmpty";
+import EditorRich from "@/components/EditorRich";
 import FormWelcomeFlow from "@/components/FormWelcomeFlow";
 import HeaderPage from "@/components/HeaderPage";
 import StateEmpty from "@/components/StateEmpty";
@@ -16,17 +17,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { formatRelative } from "@/lib/format";
-import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAutomationList } from "@/lib/automation-drafts";
+import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAutomationEmail, saveAutomationList } from "@/lib/automation-drafts";
 
 const noop = () => () => {};
 
-export default function AutomationDrafts({ scope, draftId }) {
+export default function AutomationDrafts({ scope, draftId, emailNodeId, selectedNodeId, addresses }) {
 	const ready = useSyncExternalStore(noop, () => true, () => false);
 	if (!ready) return <p className="p-4 text-sm text-muted-foreground">Loading automations…</p>;
-	return draftId ? <OpenDraft scope={scope} id={draftId} /> : <DraftList scope={scope} />;
+	return draftId ? <OpenDraft scope={scope} id={draftId} emailNodeId={emailNodeId} selectedNodeId={selectedNodeId} addresses={addresses} /> : <DraftList scope={scope} />;
 }
 
-function OpenDraft({ scope, id }) {
+function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
 	const [saved] = useState(() => {
 		try {
 			const entry = listAutomationDrafts(localStorage, scope).find((draft) => draft.id === id);
@@ -35,6 +36,7 @@ function OpenDraft({ scope, id }) {
 			return null;
 		}
 	});
+	if (emailNodeId) return <OpenAutomationEmail scope={scope} id={id} draft={saved} nodeId={emailNodeId} />;
 	return (
 		<div data-automation-editor="" className="min-w-0">
 			<div className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
@@ -42,7 +44,37 @@ function OpenDraft({ scope, id }) {
 				<h1 className="truncate text-xl font-semibold">{saved?.name ?? "Automation unavailable"}</h1>
 				{saved && <BadgeStatus status="draft" />}
 			</div>
-			{saved ? <FormWelcomeFlow storageKey={automationDraftKey(scope, id)} initialFlow={saved.flow} /> : <p className="px-3 text-sm text-muted-foreground">This draft could not be opened in this browser.</p>}
+			{saved ? <FormWelcomeFlow storageKey={automationDraftKey(scope, id)} initialFlow={saved.flow} editPath={`/automations/${id}/email`} selectedNodeId={selectedNodeId} addresses={addresses} /> : <p className="px-3 text-sm text-muted-foreground">This draft could not be opened in this browser.</p>}
+		</div>
+	);
+}
+
+function OpenAutomationEmail({ scope, id, draft, nodeId }) {
+	const node = draft?.flow.nodes.find((item) => item.id === nodeId && item.type === "email");
+	const [message, setMessage] = useState("");
+
+	function saveBody(html) {
+		try {
+			setMessage(saveAutomationEmail(localStorage, scope, id, nodeId, html) ? "Saved" : "This email node is no longer available.");
+		} catch {
+			setMessage("Could not save the email to this browser.");
+		}
+	}
+
+	return (
+		<div data-automation-editor="" className="min-w-0">
+			<header className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
+				<Button asChild variant="ghost" size="icon" aria-label="Back to flow"><Link href={`/automations/${id}?node=${encodeURIComponent(nodeId)}`}><ArrowLeft /></Link></Button>
+				<h1 className="min-w-0 truncate text-xl font-semibold">{node?.value || "Automation email"}</h1>
+				<BadgeStatus status="draft" />
+				<span role="status" className="ml-auto text-sm text-muted-foreground">{message}</span>
+			</header>
+			{node ? <div className="mx-auto max-w-3xl space-y-4 p-4 md:py-8">
+				<p className="truncate text-sm text-muted-foreground">{draft.name}</p>
+				<div className="overflow-hidden rounded-xl border bg-card">
+					<EditorRich content={node.html ?? ""} onChange={saveBody} minHeight="min-h-[60vh]" />
+				</div>
+			</div> : <p className="p-4 text-sm text-muted-foreground">This email node could not be opened in this browser.</p>}
 		</div>
 	);
 }
