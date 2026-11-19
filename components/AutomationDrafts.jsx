@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { ArrowLeft, GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, GitBranch, MoreHorizontal, PenLine, Plus, Trash2 } from "lucide-react";
+import BadgeStatus from "@/components/BadgeStatus";
+import TextEmpty from "@/components/TextEmpty";
 import FormWelcomeFlow from "@/components/FormWelcomeFlow";
 import HeaderPage from "@/components/HeaderPage";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { formatRelative } from "@/lib/format";
 import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAutomationList } from "@/lib/automation-drafts";
 
 const noop = () => () => {};
@@ -44,7 +49,14 @@ function DraftList({ scope }) {
 	const router = useRouter();
 	const [initial] = useState(() => {
 		try {
-			return { drafts: listAutomationDrafts(localStorage, scope) };
+			return { drafts: listAutomationDrafts(localStorage, scope).map((draft) => {
+				try {
+					const updatedAt = readAutomationDraft(localStorage, scope, draft.id).updatedAt;
+					return { ...draft, updatedAt: updatedAt ?? draft.updatedAt };
+				} catch {
+					return draft;
+				}
+			}) };
 		} catch {
 			return { drafts: [], error: "Could not open your automation drafts." };
 		}
@@ -71,35 +83,72 @@ function DraftList({ scope }) {
 		const name = String(new FormData(event.currentTarget).get("name")).trim();
 		if (!name || initial.error) return;
 		const id = editing.id ?? crypto.randomUUID();
-		const next = editing.id ? drafts.map((draft) => draft.id === id ? { ...draft, name } : draft) : [{ id, name }, ...drafts];
+		const next = editing.id ? drafts.map((draft) => draft.id === id ? { ...draft, name } : draft) : [{ id, name, updatedAt: new Date().toISOString() }, ...drafts];
 		if (!save(next)) return;
 		setEditing(null);
 		if (!editing.id) router.push(`/automations/${id}`);
 	}
 
+	function duplicate(draft) {
+		const id = crypto.randomUUID();
+		try {
+			const flow = readAutomationDraft(localStorage, scope, draft.id);
+			localStorage.setItem(automationDraftKey(scope, id), JSON.stringify({ ...flow, updatedAt: new Date().toISOString() }));
+			save([{ id, name: `${draft.name.slice(0, 93)} (copy)`, updatedAt: new Date().toISOString() }, ...drafts]);
+		} catch {
+			setError("Could not duplicate this automation.");
+		}
+	}
+
 	return (
 		<>
 			<HeaderPage title="Automations">
-				<Button disabled={Boolean(initial.error)} onClick={() => setEditing({ name: "" })}><Plus /> New automation</Button>
+				<Button disabled={Boolean(initial.error)} onClick={() => setEditing({ name: "" })}><Plus data-icon="inline-start" /> New</Button>
 			</HeaderPage>
-			<p className="mb-4 text-sm text-muted-foreground">Drafts are saved in this browser. Simulation sends no email.</p>
 			{drafts.length ? (
-				<div className="overflow-x-auto rounded-xl border bg-card">
-					<table className="w-full text-sm">
-						<thead className="border-b text-left text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Name</th><th className="px-4 py-3 font-medium">Status</th><th className="sr-only">Actions</th></tr></thead>
-						<tbody>
+				<div className="animate-enter overflow-hidden rounded-xl shadow-border">
+					<Table>
+						<TableHeader>
+							<TableRow className="hover:bg-transparent">
+								<TableHead className="pl-4">Name</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead className="hidden text-right md:table-cell">Recipients</TableHead>
+								<TableHead className="hidden text-right md:table-cell">Opens</TableHead>
+								<TableHead className="hidden text-right md:table-cell">Clicks</TableHead>
+								<TableHead className="hidden text-right sm:table-cell">Date</TableHead>
+								<TableHead className="w-12 pr-2"><span className="sr-only">Actions</span></TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
 							{drafts.map((draft) => (
-								<tr key={draft.id} className="border-b last:border-0 hover:bg-muted/40">
-									<td><Link className="flex items-center gap-2 px-4 py-3 font-medium" href={`/automations/${draft.id}`}><GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />{draft.name}</Link></td>
-									<td className="px-4 text-muted-foreground">Draft</td>
-									<td className="px-2"><div className="flex justify-end">
-										<Button variant="ghost" size="icon" aria-label={`Rename ${draft.name}`} onClick={() => setEditing(draft)}><Pencil /></Button>
-										<Button variant="ghost" size="icon" aria-label={`Delete ${draft.name}`} onClick={() => setDeleting(draft)}><Trash2 /></Button>
-									</div></td>
-								</tr>
+								<TableRow key={draft.id} className="relative">
+									<TableCell className="w-full max-w-0 py-3 pl-4 sm:w-1/2">
+										<div className="flex min-w-0 items-center gap-3.5">
+											<span className="grid h-10 w-16 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><GitBranch aria-hidden="true" className="size-4" /></span>
+											<Link className="min-w-0 truncate font-medium after:absolute after:inset-0" href={`/automations/${draft.id}`}>{draft.name}</Link>
+										</div>
+									</TableCell>
+									<TableCell><BadgeStatus status="draft" /></TableCell>
+									{["Recipients", "Opens", "Clicks"].map((column) => <TableCell key={column} className="hidden text-right md:table-cell"><TextEmpty label="No data" /></TableCell>)}
+									<TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{draft.updatedAt ? formatRelative(draft.updatedAt) : <TextEmpty />}</TableCell>
+									<TableCell className="pr-2 text-right">
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${draft.name}`} className="relative z-10 text-muted-foreground hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"><MoreHorizontal /></Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end" className="min-w-52">
+												<DropdownMenuItem asChild><Link href={`/automations/${draft.id}`}><PenLine /> Edit</Link></DropdownMenuItem>
+												<DropdownMenuItem onSelect={() => duplicate(draft)}><Copy /> Duplicate</DropdownMenuItem>
+												<DropdownMenuItem onSelect={() => setEditing(draft)}><PenLine /> Rename</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem variant="destructive" onSelect={() => setDeleting(draft)}><Trash2 /> Delete</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
+								</TableRow>
 							))}
-						</tbody>
-					</table>
+						</TableBody>
+					</Table>
 				</div>
 			) : !initial.error && <StateEmpty icon={GitBranch} title="No automations yet" />}
 			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}

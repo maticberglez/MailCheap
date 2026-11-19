@@ -133,7 +133,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow }) {
 		setFlow(next);
 		setResult(null);
 		try {
-			localStorage.setItem(storageKey, JSON.stringify(next));
+			localStorage.setItem(storageKey, JSON.stringify({ ...next, updatedAt: new Date().toISOString() }));
 			setError("");
 		} catch {
 			setError("Could not save this browser draft");
