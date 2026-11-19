@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@teispace/next-themes";
 import { Check, ChevronLeft, Loader2, Mail, Monitor, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { saveTheme } from "@/app/(app)/newsletters/actions";
 import BarSave from "@/components/BarSave";

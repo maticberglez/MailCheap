@@ -1,10 +1,10 @@
 "use client";
 
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@teispace/next-themes";
 
 export default function ProviderTheme({ children }) {
 	return (
-		<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+		<ThemeProvider attribute="class" storage="local" defaultTheme="system" enableSystem disableTransitionOnChange>
 			{children}
 		</ThemeProvider>
 	);
