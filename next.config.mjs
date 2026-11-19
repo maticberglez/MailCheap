@@ -41,6 +41,7 @@ const SITE_EXTENSIONS = Object.entries({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	experimental: { agentUpgrade: "security" },
 	poweredByHeader: false,
 	turbopack: { resolveAlias: Object.fromEntries(SITE_EXTENSIONS) },
 	// Read from disk by its route, so the build can't see it's needed.
