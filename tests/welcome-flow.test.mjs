@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, simulateWelcomeFlow } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -67,4 +67,14 @@ test("an SMS step carries its message and follows its outgoing connection", () =
 		{ id: "end", type: "exit" },
 	] }, []);
 	assert.deepEqual(path.map(({ type, value }) => [type, value]), [["sms", "Welcome!"], ["exit", undefined]]);
+});
+
+test("starting a connection at an input still saves the wire from output to input", () => {
+	const input = { id: "first", key: "input" };
+	const output = { id: "last", key: "other" };
+	const expected = { sourceId: "last", output: "other", destinationId: "first" };
+	assert.deepEqual(orientFlowConnection(input, output), expected);
+	assert.deepEqual(orientFlowConnection(output, input), expected);
+	assert.equal(orientFlowConnection(input, { id: "last", key: "input" }), null);
+	assert.equal(orientFlowConnection(input, { id: "first", key: "next" }), null);
 });
