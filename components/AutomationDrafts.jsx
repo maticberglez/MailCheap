@@ -153,7 +153,6 @@ function DraftList({ scope }) {
 												<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${draft.name}`} className="relative z-10 text-muted-foreground hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"><MoreHorizontal /></Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end" className="min-w-52">
-												<DropdownMenuItem asChild><Link href={`/automations/${draft.id}`}><PenLine /> Edit</Link></DropdownMenuItem>
 												<DropdownMenuItem onSelect={() => createDraft(draft, false)}><Copy /> Duplicate</DropdownMenuItem>
 												<DropdownMenuItem onSelect={() => setEditing(draft)}><PenLine /> Rename</DropdownMenuItem>
 												<DropdownMenuSeparator />
