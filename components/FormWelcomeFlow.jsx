@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Clock, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from "lucide-react";
+import { Clock, Focus, GitBranch, Pencil, LogOut, Mail, Repeat, Trash2, X } from "lucide-react";
 import EditorRich from "@/components/EditorRich";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ const TYPES = {
 };
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 112;
+const PAN_MARGIN = 220;
 const EMAIL_FIELDS = [["value", "Subject"], ["previewText", "Preview text"], ["fromName", "Sender name"], ["fromEmail", "Sender email"], ["replyTo", "Reply to"]];
 
 function nodePosition(node, index) {
@@ -41,14 +42,53 @@ export default function FormWelcomeFlow({ storageKey }) {
 	const drag = useRef(null);
 	const moved = useRef(false);
 	const canvas = useRef(null);
+	const viewport = useRef(null);
+	const panDrag = useRef(null);
+	const [pan, setPan] = useState({ x: 0, y: 0 });
+	const [isPanning, setIsPanning] = useState(false);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
-	const canvasWidth = Math.max(1000, ...savedPositions.map(({ x }) => x + NODE_WIDTH + 180));
-	const canvasHeight = Math.max(800, (flow.nodes.length + 2) * 176, ...savedPositions.map(({ y }) => y + NODE_HEIGHT + 80));
+
+	function panWithinFlow(x, y) {
+		const { clientWidth, clientHeight } = viewport.current;
+		const points = savedPositions.length ? savedPositions : [{ x: 56, y: 32 }];
+		const left = Math.min(...points.map((point) => point.x));
+		const top = Math.min(...points.map((point) => point.y));
+		const right = Math.max(...points.map((point) => point.x + NODE_WIDTH));
+		const bottom = Math.max(...points.map((point) => point.y + NODE_HEIGHT));
+		return {
+			x: Math.max(Math.min(56 - left, clientWidth - right) - PAN_MARGIN, Math.min(-left + PAN_MARGIN, x)),
+			y: Math.max(Math.min(32 - top, clientHeight - bottom) - PAN_MARGIN, Math.min(-top + PAN_MARGIN, y)),
+		};
+	}
+
+	function startPan(event) {
+		if (event.target !== event.currentTarget || event.button !== 0 || drag.current || panDrag.current) return;
+		panDrag.current = { pointerId: event.pointerId, x: event.clientX - pan.x, y: event.clientY - pan.y };
+		event.currentTarget.setPointerCapture(event.pointerId);
+		setIsPanning(true);
+	}
+
+	function movePan(event) {
+		const start = panDrag.current;
+		if (start?.pointerId !== event.pointerId) return;
+		setPan(panWithinFlow(event.clientX - start.x, event.clientY - start.y));
+	}
+
+	function finishPan(event) {
+		if (panDrag.current?.pointerId !== event.pointerId) return;
+		panDrag.current = null;
+		setIsPanning(false);
+	}
+
+	function revealNode({ x, y }) {
+		if (!viewport.current) return;
+		setPan({ x: Math.min(56, Math.max(12, (viewport.current.clientWidth - NODE_WIDTH) / 2)) - x, y: 32 - y });
+	}
 
 	function startMove(event, id, x, y) {
-		if (event.button !== 0 || drag.current || !canvas.current) return;
+		if (event.button !== 0 || drag.current || panDrag.current || !canvas.current) return;
 		const bounds = canvas.current.getBoundingClientRect();
 		moved.current = false;
 		drag.current = { id, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: event.clientX - bounds.left - x, offsetY: event.clientY - bounds.top - y };
@@ -60,10 +100,9 @@ export default function FormWelcomeFlow({ storageKey }) {
 		if (!current || current.pointerId !== event.pointerId || !canvas.current) return;
 		if (!moved.current && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 4) return;
 		moved.current = true;
-		current.pointer = { clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId };
 		const bounds = canvas.current.getBoundingClientRect();
-		const x = Math.max(24, Math.min(canvas.current.clientWidth - NODE_WIDTH - 24, event.clientX - bounds.left - current.offsetX));
-		const y = Math.max(24, Math.min(canvas.current.clientHeight - NODE_HEIGHT - 24, event.clientY - bounds.top - current.offsetY));
+		const x = Math.max(12 - pan.x, Math.min(viewport.current.clientWidth - NODE_WIDTH - 12 - pan.x, event.clientX - bounds.left - current.offsetX));
+		const y = Math.max(12 - pan.y, Math.min(viewport.current.clientHeight - NODE_HEIGHT - 12 - pan.y, event.clientY - bounds.top - current.offsetY));
 		current.position = { id: current.id, x, y };
 		setPosition(current.position);
 	}
@@ -83,7 +122,14 @@ export default function FormWelcomeFlow({ storageKey }) {
 	function load() {
 		try {
 			const saved = localStorage.getItem(storageKey);
-			if (saved) setFlow(JSON.parse(saved));
+			if (saved) {
+				const draft = JSON.parse(saved);
+				setFlow(draft);
+				if (draft.nodes.length) {
+					const first = nodePosition(draft.nodes[0], 0);
+					setPan({ x: 56 - first.x, y: 32 - first.y });
+				}
+			}
 		} catch {
 			setError("Could not open the saved draft");
 		}
@@ -103,8 +149,11 @@ export default function FormWelcomeFlow({ storageKey }) {
 
 	function add(type) {
 		const id = crypto.randomUUID();
-		change({ ...flow, nodes: [...flow.nodes, { id, type, value: type === "delay" ? "24" : "", next: "", other: "" }] });
-		setSelectedId(id);
+		const x = 56;
+		const y = Math.max(-144, ...savedPositions.map((point) => point.y)) + 176;
+		change({ ...flow, nodes: [...flow.nodes, { id, type, x, y, value: type === "delay" ? "24" : "", next: "", other: "" }] });
+		setSelectedId(null);
+		revealNode({ x, y });
 	}
 
 	function update(id, values) {
@@ -130,11 +179,15 @@ export default function FormWelcomeFlow({ storageKey }) {
 			<p className="text-sm text-muted-foreground">Draft and simulate a welcome flow in this browser. Simulation sends no email.</p>
 			{!loaded ? <Button onClick={load}>Open welcome flow draft</Button> : (
 				<>
-					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}</div>
+					<div className="flex flex-wrap gap-2">{Object.entries(TYPES).map(([type, { label, icon: Icon }]) => <Button key={type} variant="outline" size="sm" disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}><Icon aria-hidden="true" />{label}</Button>)}
+						<Button variant="ghost" size="sm" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}><Focus aria-hidden="true" /> Back to start</Button>
+					</div>
 					<div className="relative isolate overflow-hidden rounded-xl border">
-						<div className="h-[calc(100dvh-9rem)] min-h-96 overflow-auto bg-muted/30 [overflow-anchor:none]" onScroll={() => { if (drag.current?.pointer) move(drag.current.pointer); }}>
-							<div ref={canvas} className="relative min-w-full bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px]" style={{ width: canvasWidth, height: canvasHeight }}>
-								<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full">
+						<div ref={viewport} aria-label="Automation playground" className={`relative h-[calc(100dvh-9rem)] min-h-96 touch-none overflow-clip bg-muted/30 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${isPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+							style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
+							onPointerDown={startPan} onPointerMove={movePan} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
+							<div ref={canvas} className="pointer-events-none absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+								<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
 									{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 										const from = positions.get(node.id);
 										const to = positions.get(node[key]);
@@ -150,7 +203,7 @@ export default function FormWelcomeFlow({ storageKey }) {
 									const { label, icon: Icon } = TYPES[node.type];
 									const { x, y } = positions.get(node.id);
 									return (
-										<article key={node.id} className={`absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
+										<article key={node.id} className={`pointer-events-auto absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
 											<div className="flex items-center gap-2">
 												<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
 													onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
