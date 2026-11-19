@@ -49,6 +49,21 @@ function EmailNodePreview({ node, addresses, editHref }) {
 		newsletter: { name: addresses.senderName, fromName: node.fromName || addresses.senderName },
 	});
 
+	function connectPreviewScroll(event) {
+		const frame = event.currentTarget;
+		const document = frame.contentDocument;
+		const settings = frame.closest("aside");
+		if (!document || !settings) return;
+		document.addEventListener("wheel", (wheel) => {
+			const body = document.scrollingElement;
+			if (!body || !wheel.deltaY || wheel.ctrlKey) return;
+			const atEdge = wheel.deltaY < 0 ? body.scrollTop <= 0 : body.scrollTop + body.clientHeight >= body.scrollHeight - 1;
+			if (!atEdge || !wheel.cancelable) return;
+			wheel.preventDefault();
+			settings.scrollTop += wheel.deltaY * (wheel.deltaMode === 1 ? 16 : wheel.deltaMode === 2 ? settings.clientHeight : 1);
+		}, { passive: false });
+	}
+
 	function send() {
 		startSending(async () => {
 			setResult("");
@@ -67,7 +82,7 @@ function EmailNodePreview({ node, addresses, editHref }) {
 	return (
 		<div className="space-y-2">
 			<div className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted/30">
-				{node.html ? <iframe title="Email preview" sandbox="" srcDoc={html} className="absolute inset-0 block size-full bg-white" />
+				{node.html ? <iframe title="Email preview" sandbox="allow-same-origin" srcDoc={html} onLoad={connectPreviewScroll} className="absolute inset-0 block size-full bg-white" />
 					: <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
 			</div>
 			<div className="grid grid-cols-2 gap-2">
@@ -122,17 +137,22 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const canvas = useRef(null);
 	const viewport = useRef(null);
 	const panDrag = useRef(null);
-	const [pan, setPan] = useState(() => {
+	const [{ pan, zoom }, setCamera] = useState(() => {
 		const index = Math.max(0, initialFlow.nodes.findIndex(({ id }) => id === selectedNodeId));
 		const first = nodePosition(initialFlow.nodes[index] ?? {}, index);
-		return { x: 56 - first.x, y: 32 - first.y };
+		return { pan: { x: 56 - first.x, y: 32 - first.y }, zoom: 1 };
 	});
 	const [isPanning, setIsPanning] = useState(false);
-	const [zoom, setZoom] = useState(1);
+	const [isWheelZooming, setIsWheelZooming] = useState(false);
+	const wheelTimer = useRef(null);
 	const selectedNode = flow.nodes.find(({ id }) => id === selectedId);
 	const deletingNode = flow.nodes.find(({ id }) => id === deleteId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
+
+	function setPan(next) {
+		setCamera((camera) => ({ ...camera, pan: typeof next === "function" ? next(camera.pan) : next }));
+	}
 
 	function panWithinFlow(x, y, elastic = false, scale = zoom) {
 		const { clientWidth, clientHeight } = viewport.current;
@@ -172,25 +192,37 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 
 	function changeZoom(next, anchor) {
 		if (!viewport.current || drag.current || panDrag.current || wireGesture.current || placement) return;
-		const value = Math.max(0.5, Math.min(1.6, Math.round(next * 100) / 100));
 		const { clientWidth, clientHeight } = viewport.current;
-		const point = zoomCanvasAround(pan, zoom, value, anchor?.x ?? clientWidth / 2, anchor?.y ?? clientHeight / 2);
-		setZoom(value);
-		setPan(panWithinFlow(point.x, point.y, false, value));
+		setCamera((camera) => {
+			const requested = typeof next === "function" ? next(camera.zoom) : next;
+			const value = Math.max(0.5, Math.min(1.6, requested));
+			if (value === camera.zoom) return camera;
+			const point = zoomCanvasAround(camera.pan, camera.zoom, value, anchor?.x ?? clientWidth / 2, anchor?.y ?? clientHeight / 2);
+			return { zoom: value, pan: panWithinFlow(point.x, point.y, false, value) };
+		});
 	}
 
 	const zoomByWheel = useEffectEvent((event) => {
+		if (!event.deltaY) return;
+		const toolbar = event.target.closest("[role=toolbar]");
+		if (toolbar && toolbar.scrollHeight > toolbar.clientHeight) return;
 		event.preventDefault();
 		const bounds = viewport.current.getBoundingClientRect();
 		const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1);
-		changeZoom(zoom * Math.exp(-delta * 0.002), { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+		setIsWheelZooming(true);
+		clearTimeout(wheelTimer.current);
+		wheelTimer.current = setTimeout(() => setIsWheelZooming(false), 120);
+		changeZoom((scale) => scale * Math.exp(-delta * 0.0015), { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
 	});
 
 	useEffect(() => {
 		const element = viewport.current;
 		const onWheel = (event) => zoomByWheel(event);
 		element?.addEventListener("wheel", onWheel, { passive: false });
-		return () => element?.removeEventListener("wheel", onWheel);
+		return () => {
+			element?.removeEventListener("wheel", onWheel);
+			clearTimeout(wheelTimer.current);
+		};
 	}, []);
 
 	function canvasPoint(clientX, clientY) {
@@ -374,7 +406,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		}}>
 			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
-				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
+				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning || isWheelZooming ? "" : "transition-[background-position] duration-300 ease-out motion-reduce:transition-none"}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
 						if (placement && event.target === event.currentTarget && event.button === 0) place(placementPoint(event.clientX, event.clientY));
@@ -384,7 +416,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 						if (placement) setPlacement({ ...placement, ...placementPoint(event.clientX, event.clientY) });
 						else movePan(event);
 					}} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
-					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning || isWheelZooming ? "" : "transition-transform duration-300 ease-out motion-reduce:transition-none"}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
 						<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
 							{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 								const from = positions.get(node.id);
@@ -461,9 +493,9 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					</div>}
 					{connecting && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">Select {connecting.key === "input" ? "an output dot" : "an input dot"}. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
 				</div>
-				<div className={`min-h-0 min-w-0 overflow-hidden ${selectedNode ? "block" : "hidden lg:block"}`} inert={!selectedNode}>
+				<div className={`min-h-0 min-w-0 overflow-hidden ${selectedNode ? "block lg:flex lg:flex-col lg:p-3" : "hidden lg:block"}`} inert={!selectedNode}>
 					<aside aria-label="Node settings" aria-hidden={!selectedNode}
-						className={`m-2 max-h-[40dvh] min-w-0 overflow-y-auto rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none sm:m-3 lg:max-h-[calc(100%_-_1.5rem)] ${selectedNode ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
+						className={`m-2 max-h-[40dvh] min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none sm:m-3 lg:m-0 lg:max-h-none ${selectedNode ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
 						{selectedNode && <section className="space-y-3 p-4">
 							<div className="flex items-center gap-1">
 								<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
