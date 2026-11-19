@@ -112,6 +112,12 @@ export default function WritingPage() {
 				JPEG, GIF and WebP work, under 4 MB. Wider pictures are resized to 1,200 pixels. A picture shows at once and uploads in the
 				background, and its address never changes, so sent emails keep showing it.
 			</p>
+			{process.env.NODE_ENV === "development" && (
+				<p>
+					Without cloud image storage, uploads stay in this server&apos;s <code>.local-images</code> folder.
+					They work in local previews, but email recipients can&apos;t reach them. Production needs S3 or Vercel Blob.
+				</p>
+			)}
 			<p>
 				Drag the handles on a picture&apos;s sides to resize it. Point at it to show its toolbar, inside its top edge (on a touch
 				screen, tap the picture): place it on the left, in the center or on the right, add its alt text, or delete it. Emails and your

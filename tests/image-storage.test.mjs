@@ -4,7 +4,8 @@ import { withEnv } from "./helpers/app.mjs";
 import { clients, objects } from "./stubs/s3.mjs";
 import { stored as blobs } from "./stubs/vercel-blob.mjs";
 
-const { getImageStorage, getImageStorageProblem, putImage } = await import("../lib/image-storage.js");
+const { deleteImages, getImageStorage, getImageStorageProblem, putImage } = await import("../lib/image-storage.js");
+const { GET: getLocalImage } = await import("../app/api/dev-images/[name]/route.js");
 
 const S3 = {
 	IMAGES_S3_BUCKET: "mailcheap-images-test",
@@ -30,6 +31,30 @@ test("a bucket without its keys or CDN says what's missing, instead of quietly u
 	);
 	assert.equal(getImageStorageProblem({ ...S3, IMAGES_CDN_URL: "" }), "IMAGES_S3_BUCKET is set, so IMAGES_CDN_URL has to be set too");
 	assert.equal(getImageStorageProblem({ ...S3, IMAGES_CDN_URL: "http://cdn.example.com" }), "IMAGES_CDN_URL must be an https:// URL");
+});
+
+test("local development uploads can be read and deleted, and are unavailable in production", async () => {
+	assert.equal(getImageStorage({ NODE_ENV: "development" }), "local");
+	assert.equal(getImageStorageProblem({ NODE_ENV: "development" }), null);
+	assert.equal(getImageStorage({ NODE_ENV: "production" }), null);
+	assert.equal(getImageStorage({ NODE_ENV: "development", BLOB_READ_WRITE_TOKEN: "blob" }), "blob");
+	await withEnv({ NODE_ENV: "development", IMAGES_S3_BUCKET: "", BLOB_READ_WRITE_TOKEN: "", APP_URL: "http://localhost:3000" }, async () => {
+		const stored = await putImage("accounts/abc/images/cover.png", PNG, "image/png");
+		const context = { params: Promise.resolve({ name: stored.pathname }) };
+		try {
+			const response = await getLocalImage(null, context);
+			assert.equal(response.status, 200);
+			assert.equal(response.headers.get("content-type"), "image/png");
+			assert.deepEqual(new Uint8Array(await response.arrayBuffer()), PNG);
+			assert.equal((await getLocalImage(null, { params: Promise.resolve({ name: "../.env.local" }) })).status, 404);
+			await withEnv({ NODE_ENV: "production" }, async () => {
+				assert.equal((await getLocalImage(null, context)).status, 404);
+			});
+		} finally {
+			await deleteImages([stored]);
+		}
+		assert.equal((await getLocalImage(null, context)).status, 404);
+	});
 });
 
 test("S3 uploads get a name of their own in the folder, a year of cache, and the CDN's URL, with MailCheap's keys only", async () => {
