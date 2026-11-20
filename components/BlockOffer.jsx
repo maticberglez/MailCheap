@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { normalizeHexColor } from "@/lib/colors";
-import { DISCOUNT_COPY_SYMBOL, offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
+import { offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
 import { cn } from "@/lib/utils";
 import { countdownDeadlineText, countdownText, readCountdownDeadline } from "@/lib/countdown";
 
@@ -132,7 +132,7 @@ function BlockOffer({ node, updateAttributes, editor }) {
 						<span aria-hidden="true" className="absolute -top-3 left-2 grid size-6 place-items-center rounded-full border border-[var(--email-border)] bg-[var(--email-background)] text-[15px] leading-none text-[var(--email-muted)]">✂︎</span>
 						{offer}
 					</div>
-					{node.attrs.code && <ButtonCopy value={node.attrs.code} label="Copy code" symbol={DISCOUNT_COPY_SYMBOL} />}
+					{node.attrs.code && <ButtonCopy value={node.attrs.code} label="Copy code" large />}
 				</div>
 			)}
 		</NodeViewWrapper>

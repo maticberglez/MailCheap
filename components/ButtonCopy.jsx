@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // hasLabel: the label shows next to the icon, in an outlined button, for code that's the page's point to copy.
-export default function ButtonCopy({ value, label = "Copy", hasLabel = false, symbol }) {
+export default function ButtonCopy({ value, label = "Copy", hasLabel = false, large = false }) {
 	const [feedback, setFeedback] = useState(null);
 	const timeout = useRef(null);
 
@@ -26,9 +26,7 @@ export default function ButtonCopy({ value, label = "Copy", hasLabel = false, sy
 	if (hasLabel) {
 		return (
 			<Button type="button" variant="outline" size="sm" onClick={copy} className="min-w-20">
-				{symbol && feedback !== "Copied"
-					? <span aria-hidden="true" data-icon="inline-start" className="text-sm leading-none">{symbol}</span>
-					: <Icon key={String(feedback)} data-icon="inline-start" className="animate-icon-in" />}
+				<Icon key={String(feedback)} data-icon="inline-start" className="animate-icon-in" />
 				<span aria-live="polite">{feedback ?? label}</span>
 			</Button>
 		);
@@ -39,15 +37,13 @@ export default function ButtonCopy({ value, label = "Copy", hasLabel = false, sy
 			<TooltipTrigger asChild>
 				<Button
 					type="button"
-					variant={symbol ? "outline" : "ghost"}
-					size={symbol ? "icon-lg" : "icon-sm"}
+					variant={large ? "outline" : "ghost"}
+					size={large ? "icon-lg" : "icon-sm"}
 					onClick={copy}
 					aria-label={label}
 					className="relative text-muted-foreground after:absolute after:-inset-1.5 hover:text-foreground"
 				>
-					{symbol && feedback !== "Copied"
-						? <span aria-hidden="true" className="text-[22px] leading-none">{symbol}</span>
-						: <Icon key={String(feedback)} className="animate-icon-in" />}
+					<Icon key={String(feedback)} className={large ? "size-[22px] animate-icon-in" : "animate-icon-in"} />
 					<span className="sr-only" aria-live="polite">{feedback}</span>
 				</Button>
 			</TooltipTrigger>

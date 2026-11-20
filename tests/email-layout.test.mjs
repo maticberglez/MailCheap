@@ -135,7 +135,7 @@ test("countdown and static discount blocks render from section content", async (
 	assert.match(sent.text, /SAVE&20/);
 	assert.match(sent.html, /text-align:right;">\s*<table[^>]*><tr>\s*<td valign="top"><div style="[^"]*padding:0px 24px;border:1px dashed/);
 	assert.match(sent.html, /color:#ac12ff;font-size:40px;/);
-	assert.match(sent.html, /<span style="color:#123abc;">Summer sale<\/span>\s*<\/div><\/td>\s*<td[^>]+><a[^>]+href="https:\/\/example.com\/copy-discount#SAVE%2620" aria-label="Copy code"[^>]*border-radius:10px;[^>]*>⧉<\/a>/);
+	assert.match(sent.html, /<span style="color:#123abc;">Summer sale<\/span>\s*<\/div><\/td>\s*<td[^>]+><a[^>]+href="https:\/\/example.com\/copy-discount#SAVE%2620" aria-label="Copy code"[^>]*border-radius:10px;[^>]*><img src="https:\/\/example.com\/icons\/copy-code\.png" width="22" height="22" alt="Copy code"[^>]*><\/a>/);
 	assert.match(sent.html, /border-radius:50%;[^"]*font-size:15px;">✂︎<\/span>/);
 	assert.match(sent.text, /Summer sale/);
 	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
