@@ -40,12 +40,15 @@ export default function ButtonCopy({ value, label = "Copy", hasLabel = false, sy
 				<Button
 					type="button"
 					variant="ghost"
-					size="icon-sm"
+					size={symbol ? "icon-lg" : "icon-sm"}
 					onClick={copy}
 					aria-label={label}
 					className="relative text-muted-foreground after:absolute after:-inset-1.5 hover:text-foreground"
 				>
-					<Icon key={String(feedback)} className="animate-icon-in" />
+					{symbol && feedback !== "Copied"
+						? <span aria-hidden="true" className="text-[22px] leading-none">{symbol}</span>
+						: <Icon key={String(feedback)} className="animate-icon-in" />}
+					<span className="sr-only" aria-live="polite">{feedback}</span>
 				</Button>
 			</TooltipTrigger>
 			<TooltipContent>{feedback ?? label}</TooltipContent>

@@ -70,6 +70,14 @@ Every feature or significant change gets a security review of its diff before it
 - Comments only for what the code can't show: a constraint, a reason, an outside rule. Not what the next line does.
 - Read the code around a change and write like it.
 
+## Email editor
+
+- Keep section and block settings in compact panels beside the selected content. Put them on the right when space permits and show all controls without an inner scrollbar.
+- Apply editor settings automatically. Use icon buttons for alignment, and reuse the click, drag, scroll and keyboard size control for dimensions. Use the app's switch and icon styles for toggles, and its color box and hex input for section backgrounds.
+- Keep the editor and email preview visually consistent, including icons, coupon borders and section spacing. Keep discount code and label colors independently editable. Place the copy icon beside the code and show feedback after copying.
+- Keep email blocks inside sections. Place Add section directly after the last section with a small top margin. Keep section settings and delete stacked in the right gutter, aligned with the move and duplicate controls on the left.
+- Preview the appropriate email mode while editing a light or dark background, then restore the user's selected mode.
+
 ## Git
 
 - Write commit subjects in the form `type: short description`. Use `feat:` for features, `fix:` for bug fixes, and an appropriate prefix such as `docs:`, `test:`, or `refactor:` for other changes.

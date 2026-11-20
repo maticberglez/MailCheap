@@ -331,13 +331,13 @@ export default function WritingPage() {
 				Delete template also asks for confirmation. Templates stay in this browser for your newsletter and keep images and their links. Choose Duplicate section in a section&apos;s settings to copy it inside the current email.
 			</p>
 			<p>
-				Choose Countdown from the slash menu and click the block to set a deadline, text size, color and alignment. Choose whether to show days and seconds. The timer skips units with no time left and updates when the mail app loads the image.
+				Choose Countdown from the slash menu and click the block to set a deadline, text size, color and alignment. Use the switches to show days and seconds. Changes apply as you edit. The timer skips units with no time left and updates when the mail app loads the image.
 				Add fallback text with the deadline for readers who block images.
 			</p>
 			<p>
 				Choose Discount to add a fixed promo code. Click the coupon to open its settings on the right. Changes apply automatically.
 				Drag the text size, horizontal padding and vertical padding icons, or click an icon to enter a value.
-				The dashed border fits the code and label. Readers can use Copy code to open the clipboard page.
+				The dashed border fits the code, label and copy icon. Set the code and label colors separately. Readers can use the copy icon beside the code to open the clipboard page.
 			</p>
 
 			<h2 id="preview">Preview and test emails</h2>

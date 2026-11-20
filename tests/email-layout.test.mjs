@@ -128,14 +128,15 @@ test("countdown and static discount blocks render from section content", async (
 	assert.equal(countdownText(deadline, deadline - 60_000, { showSeconds: true }), "1m");
 	assert.equal(countdownText(deadline, deadline - 5000), "<1m");
 	assert.equal(readCountdownDeadline(`${deadline}<svg>`), null);
-	const html = forEmail(`<section data-section=""><div data-countdown="${deadline}" data-countdown-days="0" data-countdown-seconds="1" data-offer-size="32"><span>Deadline</span></div><div data-discount="" data-offer-align="right" data-offer-color="#AC12FF" data-offer-size="40" data-offer-padding-x="24" data-offer-padding-y="0"><strong>SAVE&amp;20</strong><br><span>Summer sale</span></div></section>`);
+	const html = forEmail(`<section data-section=""><div data-countdown="${deadline}" data-countdown-days="0" data-countdown-seconds="1" data-offer-size="32"><span>Deadline</span></div><div data-discount="" data-offer-align="right" data-offer-color="#AC12FF" data-offer-size="40" data-offer-label-color="#123abc" data-offer-padding-x="24" data-offer-padding-y="0"><strong>SAVE&amp;20</strong><br><span>Summer sale</span></div></section>`);
 	const sent = renderEmail({ format: "rich", html, fontBaseUrl: "https://example.com" });
 	assert.match(sent.html, new RegExp(`src="https://example.com/api/countdown/${deadline}\\?days=0&amp;seconds=1&amp;size=32"`));
 	assert.match(sent.html, /Ends Jan 1, 2030/);
 	assert.match(sent.text, /SAVE&20/);
 	assert.match(sent.html, /text-align:right;">\s*<div style="display:inline-block;[^"]*padding:0px 24px;border:1px dashed/);
 	assert.match(sent.html, /color:#ac12ff;font-size:40px;/);
-	assert.match(sent.html, /href="https:\/\/example.com\/copy-discount#SAVE%2620" style="display:inline-block;min-width:80px;[^"]*border:1px solid [^"]*text-decoration:none;[^"]*"><span aria-hidden="true"[^>]*>⧉<\/span> Copy code<\/a>/);
+	assert.match(sent.html, /<span style="color:#123abc;">Summer sale<\/span>[\s\S]*<td[^>]+><a[^>]+href="https:\/\/example.com\/copy-discount#SAVE%2620" aria-label="Copy code"[^>]*>⧉<\/a>/);
+	assert.match(sent.html, /border-radius:50%;[^"]*font-size:15px;">✂︎<\/span>/);
 	assert.match(sent.text, /Summer sale/);
 	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
 });
@@ -146,4 +147,12 @@ test("offer styling rejects invalid alignment, size and color before drawing ema
 	assert.match(sent.html, /text-align:center;">\s*<div style="display:inline-block;[^"]*padding:16px 16px;border:1px dashed/);
 	assert.match(sent.html, /<strong style="">CODE<\/strong>/);
 	assert.doesNotMatch(sent.html, /data-offer-|font-size:99px|color:red/);
+});
+
+test("older coupons keep their shared text color and can reset the label independently", () => {
+	const html = (labelColor = "") => `<div data-discount="" data-offer-color="#123456"${labelColor}><strong>CODE</strong><br><span>Label</span></div>`;
+	assert.match(renderEmail({ format: "rich", html: html() }).html, /<span style="color:#123456;">Label<\/span>/);
+	const reset = renderEmail({ format: "rich", html: html(' data-offer-label-color="auto"') }).html;
+	assert.match(reset, /<strong style="color:#123456;">CODE<\/strong>/);
+	assert.match(reset, /<span>Label<\/span>/);
 });

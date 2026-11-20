@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CaseSensitive, MoveHorizontal, MoveVertical, Scissors } from "lucide-react";
+import { CalendarDays, CaseSensitive, MoveHorizontal, MoveVertical, Scissors, Timer } from "lucide-react";
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import ControlEditorSize from "@/components/ControlEditorSize";
@@ -10,7 +10,7 @@ import ButtonCopy from "@/components/ButtonCopy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { normalizeHexColor } from "@/lib/colors";
 import { DISCOUNT_COPY_SYMBOL, offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,6 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	const style = readOfferStyle(node.attrs);
 	const [now, setNow] = useState(() => Date.now());
 	const [open, setOpen] = useState(false);
-	const [error, setError] = useState("");
 	const [dragStyle, setDragStyle] = useState(null);
 	const display = { ...style, ...dragStyle };
 	const padding = { paddingInline: display["padding-x"] ?? OFFER_PADDING.default, paddingBlock: display["padding-y"] ?? OFFER_PADDING.default };
@@ -34,121 +33,126 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	}, [deadline]);
 
 	const label = countdown ? "Countdown" : "Discount";
-	return (
-		<NodeViewWrapper contentEditable={false} style={{ color: style.color ?? undefined, textAlign: display.align }}
-			className={cn("mb-4", countdown && "rounded-lg border p-3")}>
-			<Popover open={open} onOpenChange={(next) => {
-				setOpen(next);
-				setError("");
-				setDragStyle(null);
-			}}>
-				<PopoverTrigger asChild>
-					<button type="button" disabled={!editor.isEditable} className={cn("cursor-pointer gap-1 rounded-lg text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
-							countdown ? "grid w-full px-2 py-1" : "relative inline-flex max-w-full flex-col break-words border border-dashed align-top")}
-						style={{ textAlign: "inherit", ...(countdown ? {} : padding) }}
-					>
-						{!countdown && <Scissors aria-hidden="true" className="absolute -top-2 left-2 size-4 bg-background p-0.5 text-muted-foreground" />}
-						<strong className="min-w-0" style={{ color: "inherit", fontSize: display.size ?? undefined }}>{countdown ? (deadline ? countdownText(deadline, now, node.attrs) : "Set countdown deadline") : node.attrs.code || "Set discount code"}</strong>
-						{countdown ? deadline && <span className="text-sm text-muted-foreground">{countdownDeadlineText(deadline)}</span>
-							: <span className="min-w-0 text-sm text-muted-foreground" style={{ color: style.color ?? undefined }}>{node.attrs.label}</span>}
-					</button>
-				</PopoverTrigger>
-				<PopoverContent side={countdown ? "bottom" : "right"} align={countdown ? "center" : "start"}
-					sideOffset={countdown ? 6 : 12} className={countdown ? undefined : "max-h-none w-72 overflow-visible"}>
+	const labelColor = style["label-color"] === "auto" ? null : style["label-color"];
+	const offer = (
+		<Popover open={open} onOpenChange={(next) => {
+			setOpen(next);
+			setDragStyle(null);
+		}}>
+			<PopoverTrigger asChild>
+				<button type="button" disabled={!editor.isEditable}
+					className={cn("cursor-pointer gap-1 rounded-lg text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
+						countdown ? "grid w-full px-2 py-1" : "grid min-w-0 break-words")}
+					style={{ textAlign: "inherit" }}
+				>
+					<strong className="min-w-0" style={{ color: style.color ?? "inherit", fontSize: display.size ?? (countdown && deadline ? COUNTDOWN_DIMENSIONS[0].fallback : undefined) }}>
+						{countdown ? (deadline ? countdownText(deadline, now, node.attrs) : "Set countdown deadline") : node.attrs.code || "Set discount code"}
+					</strong>
+					{countdown ? deadline && <span className="text-sm text-muted-foreground">{countdownDeadlineText(deadline)}</span>
+						: <span className="min-w-0 text-sm text-muted-foreground" style={{ color: labelColor ?? undefined }}>{node.attrs.label}</span>}
+				</button>
+			</PopoverTrigger>
+			<PopoverContent side="right" align="start" sideOffset={12} className="max-h-none w-72 overflow-visible">
+				<div className="grid gap-2.5">
+					<h3 className="font-semibold">{label}</h3>
 					{countdown ? (
-						<form className="grid gap-3" onSubmit={(event) => {
-							event.preventDefault();
-							const fields = new FormData(event.currentTarget);
-							const hex = String(fields.get("color") ?? "").trim();
-							const color = normalizeHexColor(hex);
-							if (hex && !color) { setError("Enter a valid hex color."); return; }
-							const styling = readOfferStyle({ align: fields.get("align"), color, size: fields.get("size") });
-							const next = readCountdownDeadline(new Date(fields.get("deadline")).valueOf());
-							if (!next) { setError("Enter a valid deadline."); return; }
-							setNow(Date.now());
-							updateAttributes({ ...styling, deadline: next, showDays: fields.has("showDays"), showSeconds: fields.has("showSeconds") });
-							setOpen(false);
-						}}>
-							<h3 className="font-semibold">{label}</h3>
+						<>
 							<label className="grid gap-1 text-sm">Deadline (local time)
-								<Input name="deadline" type="datetime-local" required defaultValue={deadline ? new Date(deadline - new Date(deadline).getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : ""} />
-							</label>
-							<div className="flex flex-wrap gap-3 text-sm">
-								<label className="flex items-center gap-1.5"><input name="showDays" type="checkbox" defaultChecked={node.attrs.showDays} /> Show days</label>
-								<label className="flex items-center gap-1.5"><input name="showSeconds" type="checkbox" defaultChecked={node.attrs.showSeconds} /> Show seconds</label>
-							</div>
-							<label className="grid gap-1 text-sm">Alignment
-								<Select name="align" defaultValue={style.align}>
-									<SelectTrigger aria-label="Alignment" className="w-full"><SelectValue /></SelectTrigger>
-									<SelectContent position="popper">
-										{ALIGNMENTS.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-									</SelectContent>
-								</Select>
-							</label>
-							<label className="grid gap-1 text-sm">Text size (px)
-								<Input name="size" type="number" min={OFFER_SIZES.min} max={OFFER_SIZES.max} placeholder="Default" defaultValue={style.size ?? ""} className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-							</label>
-							<label className="grid gap-1 text-sm">Text color
-								<Input name="color" maxLength={7} placeholder="#000000" defaultValue={style.color ?? ""} />
-							</label>
-							{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-							<Button type="submit">Apply</Button>
-						</form>
-					) : (
-						<div className="grid gap-2.5">
-							<h3 className="font-semibold">Discount</h3>
-							<div className="grid grid-cols-2 gap-2">
-								<label className="grid gap-1 text-sm">Code
-									<Input maxLength={64} defaultValue={node.attrs.code} onChange={(event) => updateAttributes({ code: event.target.value.trim() })} />
-								</label>
-								<label className="grid gap-1 text-sm">Label
-									<Input maxLength={120} defaultValue={node.attrs.label} onChange={(event) => updateAttributes({ label: event.target.value.trim() })} />
-								</label>
-							</div>
-							<fieldset className="grid gap-1 text-sm">
-								<legend>Alignment</legend>
-								<div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-									{ALIGNMENTS.map(({ value, label, icon: Icon }) => (
-										<Button key={value} type="button" aria-label={label} aria-pressed={display.align === value} title={label}
-											variant="ghost" size="sm" className="aria-pressed:bg-background aria-pressed:shadow-xs"
-											onClick={() => updateAttributes({ align: value })}
-										><Icon aria-hidden="true" /></Button>
-									))}
-								</div>
-							</fieldset>
-							{DISCOUNT_DIMENSIONS.map(({ key, icon, label, min, max, fallback }) => (
-								<ControlEditorSize key={key} icon={icon} label={label} min={min} max={max}
-									value={display[key]} getFallback={() => fallback}
-									onChange={(value) => updateAttributes({ [key]: value })}
-									onPreview={(value) => setDragStyle(value == null ? null : { [key]: value })}
-								/>
-							))}
-							<label className="grid gap-1 text-sm">Text color
-								<Input maxLength={7} placeholder="#000000" defaultValue={style.color ?? ""} aria-invalid={Boolean(error)}
+								<Input type="datetime-local" defaultValue={deadline ? new Date(deadline - new Date(deadline).getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : ""}
 									onChange={(event) => {
-										const hex = event.target.value.trim();
-										const color = normalizeHexColor(hex);
-										setError("");
-										if (!hex || color) updateAttributes({ color });
-									}}
-									onBlur={(event) => {
-										const hex = event.target.value.trim();
-										if (hex && !normalizeHexColor(hex)) setError("Enter a valid hex color.");
+										const next = readCountdownDeadline(new Date(event.target.value).valueOf());
+										if (!next) return;
+										setNow(Date.now());
+										updateAttributes({ deadline: next });
 									}}
 								/>
 							</label>
-							{error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+							<div className="grid gap-1 rounded-lg border bg-background p-2">
+								<label className="flex items-center gap-2 rounded-md px-1 py-1 text-sm">
+									<CalendarDays aria-hidden="true" className="size-4 text-muted-foreground" /> Show days
+									<Switch className="ml-auto" checked={node.attrs.showDays} onCheckedChange={(showDays) => updateAttributes({ showDays })} />
+								</label>
+								<label className="flex items-center gap-2 rounded-md px-1 py-1 text-sm">
+									<Timer aria-hidden="true" className="size-4 text-muted-foreground" /> Show seconds
+									<Switch className="ml-auto" checked={node.attrs.showSeconds} onCheckedChange={(showSeconds) => updateAttributes({ showSeconds })} />
+								</label>
+							</div>
+						</>
+					) : (
+						<div className="grid grid-cols-2 gap-2">
+							<label className="grid gap-1 text-sm">Code
+								<Input maxLength={64} defaultValue={node.attrs.code} onChange={(event) => updateAttributes({ code: event.target.value.trim() })} />
+							</label>
+							<label className="grid gap-1 text-sm">Label
+								<Input maxLength={120} defaultValue={node.attrs.label} onChange={(event) => updateAttributes({ label: event.target.value.trim() })} />
+							</label>
 						</div>
 					)}
-				</PopoverContent>
-			</Popover>
-			{!countdown && node.attrs.code && <div className="mt-2"><ButtonCopy value={node.attrs.code} label="Copy code" hasLabel symbol={DISCOUNT_COPY_SYMBOL} /></div>}
+					<fieldset className="grid gap-1 text-sm">
+						<legend>Alignment</legend>
+						<div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+							{ALIGNMENTS.map(({ value, label, icon: Icon }) => (
+								<Button key={value} type="button" aria-label={label} aria-pressed={display.align === value} title={label}
+									variant="ghost" size="sm" className="aria-pressed:bg-background aria-pressed:shadow-xs"
+									onClick={() => updateAttributes({ align: value })}
+								><Icon aria-hidden="true" /></Button>
+							))}
+						</div>
+					</fieldset>
+					{(countdown ? COUNTDOWN_DIMENSIONS : DISCOUNT_DIMENSIONS).map(({ key, icon, label, min, max, fallback }) => (
+						<ControlEditorSize key={key} icon={icon} label={label} min={min} max={max}
+							value={display[key]} getFallback={() => fallback}
+							onChange={(value) => updateAttributes({ [key]: value })}
+							onPreview={(value) => setDragStyle(value == null ? null : { [key]: value })}
+						/>
+					))}
+					<div className={cn("grid gap-2", !countdown && "grid-cols-2")}>
+						<OfferColor label={countdown ? "Text color" : "Code color"} value={style.color} onChange={(color) => updateAttributes({ color })} />
+						{!countdown && <OfferColor label="Label color" value={labelColor} onChange={(color) => updateAttributes({ "label-color": color ?? "auto" })} />}
+					</div>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+
+	return (
+		<NodeViewWrapper contentEditable={false} style={{ textAlign: display.align }} className={cn("mb-4", countdown && "rounded-lg border p-3")}>
+			{countdown ? offer : (
+				<div className="relative inline-flex max-w-full items-start gap-2 rounded-lg border border-dashed align-top" style={padding}>
+					<Scissors aria-hidden="true" className="absolute -top-2.5 left-2 size-5 rounded-full border bg-background p-0.5 text-muted-foreground" />
+					{offer}
+					{node.attrs.code && <ButtonCopy value={node.attrs.code} label="Copy code" symbol={DISCOUNT_COPY_SYMBOL} />}
+				</div>
+			)}
 		</NodeViewWrapper>
 	);
 }
 
+function OfferColor({ label, value, onChange }) {
+	const [invalid, setInvalid] = useState(false);
+	return (
+		<label className="grid gap-1 text-sm">{label}
+			<Input aria-invalid={invalid} maxLength={7} placeholder="Default" defaultValue={value ?? ""}
+				onChange={(event) => {
+					const hex = event.target.value.trim();
+					const color = normalizeHexColor(hex);
+					setInvalid(false);
+					if (!hex || color) onChange(color);
+				}}
+				onBlur={(event) => {
+					const hex = event.target.value.trim();
+					setInvalid(Boolean(hex && !normalizeHexColor(hex)));
+				}}
+			/>
+			{invalid && <span role="alert" className="text-xs text-destructive">Enter a valid hex color.</span>}
+		</label>
+	);
+}
+
+const COUNTDOWN_DIMENSIONS = [{ key: "size", icon: CaseSensitive, label: "Text size", ...OFFER_SIZES, fallback: 40 }];
+
 const DISCOUNT_DIMENSIONS = [
-	{ key: "size", icon: CaseSensitive, label: "Text size", ...OFFER_SIZES, fallback: 17 },
+	{ ...COUNTDOWN_DIMENSIONS[0], fallback: 17 },
 	{ key: "padding-x", icon: MoveHorizontal, label: "Horizontal padding", ...OFFER_PADDING, fallback: OFFER_PADDING.default },
 	{ key: "padding-y", icon: MoveVertical, label: "Vertical padding", ...OFFER_PADDING, fallback: OFFER_PADDING.default },
 ];
@@ -191,6 +195,10 @@ export const DiscountBlock = Node.create({
 	addAttributes() {
 		return {
 			...offerAttributes,
+			"label-color": {
+				default: "auto", rendered: false,
+				parseHTML: (element) => readOfferStyle({ "label-color": element.getAttribute("data-offer-label-color") ?? element.getAttribute("data-offer-color") })["label-color"] ?? "auto",
+			},
 			code: { default: "", rendered: false, parseHTML: (element) => element.querySelector("strong")?.textContent.slice(0, 64) ?? "" },
 			label: { default: "Use this discount code", rendered: false, parseHTML: (element) => element.querySelector("span")?.textContent.slice(0, 120) ?? "" },
 		};

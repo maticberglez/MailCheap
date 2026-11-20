@@ -203,7 +203,7 @@ export default function EditorRich({
 					<EditorContent editor={editor} className="relative" />
 				</div>
 				{sectionLayouts && (
-					<div className="flex justify-center px-4 pb-5">
+					<div className="mt-3 flex justify-center px-4 pb-5">
 						<Button type="button" variant="outline" size="sm" onClick={() => {
 							insertEmailSection(editor.chain().focus(), true).run();
 						}}><Plus /> Add section</Button>
