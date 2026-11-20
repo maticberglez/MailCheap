@@ -97,8 +97,8 @@ export default function NewslettersPage() {
 			<h2 id="confirm-signups">Confirm new signups</h2>
 			<p>
 				With confirmed opt-in, people who sign up get an email with a button, and only join your list once they click it. Until then
-				they&apos;re pending and get nothing else. It&apos;s on for new newsletters, and it keeps typos and fake signups out of your
-				list.
+				they&apos;re pending and get nothing else. New newsletters start with confirmed opt-in and the standalone welcome email off.
+				Enable confirmed opt-in if you want subscribers to confirm their email address.
 			</p>
 			<p>
 				The built-in confirmation email follows your newsletter&apos;s name and description. On the{" "}

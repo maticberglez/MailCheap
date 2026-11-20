@@ -162,7 +162,7 @@ describe("new newsletters", () => {
 describe("before the first issue", () => {
 	test("nothing is public, as when the website is off, while signups, confirm and unsubscribe links keep working", async () => {
 		const user = await customer("website-waiting@example.com");
-		const waiting = await createNewsletter(user, { name: "Waiting notes" });
+		const waiting = await createNewsletter(user, { name: "Waiting notes", requireConfirmation: true });
 		const off = await createNewsletter(user, { name: "Off notes", archiveEnabled: false });
 		assert.equal(waiting.archiveEnabled, true);
 		assert.deepEqual(await visitWebsite(waiting.slug, "first-issue"), HIDDEN);

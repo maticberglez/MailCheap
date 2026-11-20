@@ -98,12 +98,13 @@ test("a slug can't be a subdomain MailCheap uses or keeps", () => {
 	for (const slug of ["weekly", "the-hens", "www2", "api-notes", "r2"]) assert.equal(getNewsletterProblem(settings(slug)), null, slug);
 });
 
-test("new newsletters start with confirmed opt-in and the built-in confirmation email", () => {
+test("new newsletters start with confirmed opt-in and the welcome email off", () => {
 	const created = applySharedAddress(mergeNewsletterSettings(toNewsletterSettings(null), { name: "Fresh", slug: "fresh" }), "mailcheapmail.com");
-	assert.equal(created.requireConfirmation, true);
+	assert.equal(created.requireConfirmation, false);
+	assert.equal(created.welcome.enabled, false);
 	assert.equal(getNewsletterProblem(created), null, "no confirmation email of its own: the built-in one");
 	assert.equal(toNewsletterSettings({ name: "Old", slug: "old" }).requireConfirmation, false, "saved newsletters keep theirs");
-	assert.equal(getNewsletterProblem({ ...created, confirmation: { subject: "", previewText: "", markdown: "Click here" } }), "Confirmation email needs a subject");
+	assert.equal(getNewsletterProblem({ ...created, requireConfirmation: true, confirmation: { subject: "", previewText: "", markdown: "Click here" } }), "Confirmation email needs a subject");
 });
 
 test("new newsletters start with list cleanup on and the default numbers, unless they say false; saved ones keep theirs", () => {

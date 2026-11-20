@@ -70,7 +70,9 @@ test("a welcome email saved on while signups confirm shows off, as it doesn't go
 	assert.equal(bothOn.isWelcomeEnabled, false);
 	const welcoming = getNewsletterDraft({ newsletter: { ...newsletter, requireConfirmation: false, welcome: { enabled: true } }, domains: [], sharedDomain });
 	assert.equal(welcoming.isWelcomeEnabled, true);
-	assert.equal(getNewsletterDraft({ newsletter: null, domains: [], sharedDomain }).isWelcomeEnabled, false, "new newsletters confirm signups");
+	const fresh = getNewsletterDraft({ newsletter: null, domains: [], sharedDomain });
+	assert.equal(fresh.isWelcomeEnabled, false);
+	assert.equal(fresh.isConfirmationRequired, false);
 });
 
 test("the shared address follows the slug; an own domain keeps its address", () => {

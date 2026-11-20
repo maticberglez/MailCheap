@@ -32,3 +32,6 @@ export function useSearchParams() {
 export function useRouter() {
 	return { push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} };
 }
+
+// Static test renders do not stream HTML into Next.js's response.
+export function useServerInsertedHTML() {}

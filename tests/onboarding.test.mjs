@@ -208,11 +208,14 @@ describe("without a plan", () => {
 	test("the dashboard adds 3 contacts a day by hand, active at once with the signup checks and no email; imports stay paid", async () => {
 		const user = await signIn("contacts-trial@example.com");
 		await welcome(user, { name: "Contacts trial" });
-		const newsletterId = String((await m.Newsletter.findOne({ accountId: user.accountId }).lean())._id);
+		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
+		assert.equal(newsletter.requireConfirmation, false, "onboarding leaves double opt-in off by default");
+		const newsletterId = String(newsletter._id);
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: newsletter._id }, { $set: { requireConfirmation: true } });
 		const add = (email, consent = "on") => as(user, () => m.contacts.addContact(null, form({ newsletterId, email, ...(consent && { consent }) })));
 
 		assert.deepEqual(await add("me@example.org", null), { error: "Check that this person agreed to get your emails" }, "a refusal doesn't count");
-		assert.deepEqual(await add("me@example.org"), { email: "me@example.org", status: "active" }, "though new newsletters ask signups to confirm");
+		assert.deepEqual(await add("me@example.org"), { email: "me@example.org", status: "active" }, "even when the newsletter asks signups to confirm");
 		assert.deepEqual(await add("jane.doe@gmial.com"), { error: "Did you mean jane.doe@gmail.com?" }, "a refused address doesn't count");
 		assert.deepEqual(await add("me@example.org"), { error: "me@example.org is already a contact" });
 		assert.equal((await add("a@example.org")).status, "active");

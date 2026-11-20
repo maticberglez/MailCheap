@@ -54,6 +54,8 @@ const WELCOME = { enabled: true, subject: "Welcome", markdown: "Thanks for joini
 test("the API turns on the welcome email only with double opt-in off in the same request, and the reverse", async () => {
 	const user = await customer("signup-emails@example.com");
 	const path = `/api/v1/newsletters/${user.newsletterId}`;
+	const initial = await callApi("GET", path, { key: user.key });
+	assert.deepEqual([initial.body.requireConfirmation, initial.body.welcome.enabled], [false, false]);
 	assert.equal((await callApi("PATCH", path, { key: user.key, body: { requireConfirmation: true } })).status, 200);
 
 	const refused = await callApi("PATCH", path, { key: user.key, body: { welcome: WELCOME } });
@@ -73,8 +75,8 @@ test("the API turns on the welcome email only with double opt-in off in the same
 	assert.deepEqual([confirming.requireConfirmation, confirming.welcome.enabled], [true, false]);
 	assert.equal(confirming.welcome.subject, "Welcome", "the welcome email keeps what it says");
 
-	const created = await callApi("POST", "/api/v1/newsletters", { key: user.key, body: { name: "Second", welcome: WELCOME } });
-	assert.equal(created.status, 400, "a new newsletter with a welcome email asks for double opt-in off");
+	const created = await callApi("POST", "/api/v1/newsletters", { key: user.key, body: { name: "Second", requireConfirmation: true, welcome: WELCOME } });
+	assert.equal(created.status, 400, "a new newsletter cannot explicitly enable both");
 });
 
 test("a newsletter saved with both on before the rule still takes other changes", async () => {
