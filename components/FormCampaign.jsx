@@ -705,7 +705,7 @@ export default function FormCampaign({
 				defaultRecipients={testRecipients}
 				description="Sends this draft as it is now, with [Test] before its subject."
 				contactHint={
-					isWithSections
+					sectionPreview
 						? "The email as this contact gets it: their first name, fields and sections."
 						: "The email as this contact gets it, with their first name and fields."
 				}

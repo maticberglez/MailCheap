@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { Section } from "../components/BlockSection.jsx";
+import { CountdownBlock, DiscountBlock } from "../components/BlockOffer.jsx";
 import { HtmlBlock } from "../components/BlockHtml.jsx";
 import { ButtonBlock } from "../lib/editor-button.js";
 import { Callout } from "../lib/editor-callout.js";
@@ -12,7 +13,7 @@ import { forEmail } from "../lib/sections.js";
 import { renderEmail } from "../lib/render-email.js";
 
 test("reducing section columns keeps every block in order, including an image link", () => {
-	const schema = getSchema([StarterKit, Section, HtmlBlock, ImageAligned, ButtonBlock, Callout, Columns, Column]);
+	const schema = getSchema([StarterKit, Section, HtmlBlock, ImageAligned, ButtonBlock, Callout, Columns, Column, CountdownBlock, DiscountBlock]);
 	const paragraph = (value) => schema.nodes.paragraph.create(null, schema.text(value));
 	const image = schema.nodes.image.create({ src: "https://example.com/photo.png", link: "https://example.com/product" });
 	const blocks = [paragraph("First"), image, paragraph("Last")];
@@ -50,7 +51,7 @@ test("rich emails render section backgrounds, opted-in mobile stacking, and boun
 
 test("section radius survives the editor, web sanitizer and email rendering", async () => {
 	const { renderIssueBody } = await import("../lib/archive-content.js");
-	const schema = getSchema([StarterKit, Section, HtmlBlock, ImageAligned, ButtonBlock, Callout, Columns, Column]);
+	const schema = getSchema([StarterKit, Section, HtmlBlock, ImageAligned, ButtonBlock, Callout, Columns, Column, CountdownBlock, DiscountBlock]);
 	for (const radius of [0, 24, 101, "9; color:red"]) {
 		const node = schema.nodes.section.createChecked({ radius, light: "#abcdef", dark: "#123456" }, schema.nodes.paragraph.create());
 		const [, attributes] = schema.nodes.section.spec.toDOM(node);
@@ -71,7 +72,7 @@ test("rich email documents wrap older loose blocks and keep existing section rul
 	const { EditorState, TextSelection } = await import("@tiptap/pm/state");
 	const schema = getSchema([
 		StarterKit.configure({ document: false }), EmailDocument, EmailSection, HtmlBlock, ButtonBlock,
-		Callout, ImageAligned, Columns, Column,
+		Callout, ImageAligned, Columns, Column, CountdownBlock, DiscountBlock,
 	]);
 
 	function element(name, attributes, ...children) {
@@ -116,4 +117,19 @@ test("a section renders its layout settings trigger", async () => {
 	const html = renderToStaticMarkup(createElement(BlockSection, { node: { attrs: {} } }));
 	assert.match(html, /data-section-header/);
 	assert.match(html, /Section/);
+});
+
+test("countdown and static discount blocks render from section content", async () => {
+	const { countdownText, readCountdownDeadline } = await import("../lib/countdown.js");
+	const deadline = Date.UTC(2030, 0, 1);
+	assert.equal(countdownText(deadline, deadline - (25 * 60 + 3) * 60_000), "1d  1h  3m");
+	assert.equal(countdownText(deadline, deadline), "Offer ended");
+	assert.equal(readCountdownDeadline(`${deadline}<svg>`), null);
+	const html = forEmail(`<section data-section=""><div data-countdown="${deadline}"><span>Deadline</span></div><div data-discount=""><strong>SAVE&amp;20</strong><br><span>Summer sale</span></div></section>`);
+	const sent = renderEmail({ format: "rich", html, fontBaseUrl: "https://example.com" });
+	assert.match(sent.html, new RegExp(`src="https://example.com/api/countdown/${deadline}"`));
+	assert.match(sent.html, /Ends Jan 1, 2030/);
+	assert.match(sent.text, /SAVE&20/);
+	assert.match(sent.text, /Summer sale/);
+	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
 });

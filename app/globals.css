@@ -1087,6 +1087,22 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
   }
 }
 
+/* Match the block margins in email previews, including across section boundaries. */
+.prose-issue[data-email-layout] {
+  & :is(p, ul, ol, blockquote) {
+    margin: 0 0 var(--email-block-gap);
+  }
+  & :is(h1, h2, h3) {
+    margin: calc(2 * var(--email-block-gap)) 0 var(--email-heading-gap);
+  }
+  & hr {
+    margin: calc(2 * var(--email-block-gap)) 0;
+  }
+  & li > p {
+    margin: 0;
+  }
+}
+
 [data-section-view] {
   background-color: var(--section-light-bg, transparent);
   border-radius: var(--drag-radius, var(--section-radius, var(--radius-xl)));

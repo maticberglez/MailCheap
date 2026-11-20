@@ -85,7 +85,7 @@ export default function ControlEditorSize({ icon: Icon, label, min, max, value, 
 					max={max}
 					value={draft ?? value ?? ""}
 					placeholder="Auto"
-					className="w-full bg-transparent text-sm tabular-nums outline-none focus-visible:underline"
+					className="w-full appearance-none bg-transparent text-sm tabular-nums outline-none focus-visible:underline [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 					onChange={(event) => setDraft(event.target.value)}
 					onBlur={commitDraft}
 					onKeyDown={(event) => {

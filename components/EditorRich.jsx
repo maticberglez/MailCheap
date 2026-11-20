@@ -14,7 +14,7 @@ import DialogContactFields from "@/components/DialogContactFields";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import GutterProblems from "@/components/GutterProblems";
 import MenuButton from "@/components/MenuButton";
-import DialogCountdown from "@/components/DialogCountdown";
+import { CountdownBlock, DiscountBlock } from "@/components/BlockOffer";
 import MenuEditorTemplates from "@/components/MenuEditorTemplates";
 import MenuFormat from "@/components/MenuFormat";
 import MenuImage from "@/components/MenuImage";
@@ -32,6 +32,7 @@ import { MergeTags, setEditorFields } from "@/lib/editor-merge-tags";
 import { Problems, findDocProblems, findProblem, revealProblem, setProblemSegments } from "@/lib/editor-problems";
 import { UndoDelete } from "@/lib/editor-undo-delete";
 import { fieldTag } from "@/lib/merge-tags";
+import { getEmailTheme, resolveTheme } from "@/lib/themes";
 import { toast } from "@/lib/toast";
 import { IMAGE_TYPES, IMAGE_TYPE_ERROR, getDisplaySize, prepareImage, uploadImage } from "@/lib/upload-image";
 import { useFileDropGuard } from "@/lib/use-file-drop";
@@ -67,12 +68,12 @@ export default function EditorRich({
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isEditingButtonLink, setIsEditingButtonLink] = useState(false);
 	const [imagePicker, setImagePicker] = useState(null);
-	const [showCountdown, setShowCountdown] = useState(false);
 	const [isAddingField, setIsAddingField] = useState(false);
 	// The block whose dot says what it's about, once brought into view.
 	const [pinned, setPinned] = useState(null);
 	const unpin = useCallback(() => setPinned(null), []);
 	const segmentIds = useMemo(() => (sectionSegments ?? []).map(({ id }) => id), [sectionSegments]);
+	const emailGap = sectionLayouts ? getEmailTheme(resolveTheme(newsletter?.theme)).gap : null;
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
@@ -98,6 +99,8 @@ export default function EditorRich({
 			Column,
 			ButtonBlock.configure({ newsletter, onEditLink: () => setIsEditingButtonLink(true) }),
 			HtmlBlock.configure({ newsletter }),
+			CountdownBlock,
+			DiscountBlock,
 			...(sectionLayouts ? [EmailDocument, EmailSection] : [Section]),
 			BlockHandle,
 			UndoDelete,
@@ -117,13 +120,17 @@ export default function EditorRich({
 				onAddField: () => setIsAddingField(true),
 				contactFields,
 				withSections: sectionLayouts,
-				onCountdown: templateScope ? () => setShowCountdown(true) : null,
+				withOffers: sectionLayouts,
 			}),
 			MergeTagSuggestion.configure({ contactFields }),
 		],
 		editorProps: {
 			// With a mouse, the left padding holds the blocks' drag handle (lib/editor-block-handle.js).
-			attributes: { class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:px-12`, "aria-label": "Content" },
+			attributes: {
+				class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:px-12`,
+				"aria-label": "Content",
+				...(emailGap && { "data-email-layout": "", style: `--email-block-gap:${emailGap}px;--email-heading-gap:${Math.round(emailGap * 0.75)}px` }),
+			},
 			handleDoubleClickOn: (view, _pos, node, nodePos, _event, direct) => {
 				if (!direct || !view.editable || node.type.name !== "image" || node.attrs.src?.startsWith("blob:")) return false;
 				view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)));
@@ -208,9 +215,6 @@ export default function EditorRich({
 			<MenuButton editor={editor} isEditingLink={isEditingButtonLink} onEditLink={setIsEditingButtonLink} actionLink={actionLink} />
 			<MenuImage editor={editor} />
 			<TooltipMergeTag editor={editor} contactFields={contactFields} />
-			{showCountdown && <DialogCountdown onOpenChange={setShowCountdown} onInsert={({ src, alt }) => {
-				editor.chain().focus().insertContent({ type: "image", attrs: { src, alt } }).run();
-			}} />}
 			<DialogImagePicker
 				open={Boolean(imagePicker)}
 				currentUrl={imagePicker?.replaceUrl}

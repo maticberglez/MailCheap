@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { TextSelection } from "@tiptap/pm/state";
 import { Node } from "@tiptap/core";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { ChevronDown, Copy, SquareDashed, SquareRoundCorner } from "lucide-react";
+import { Copy, SquareDashed, SquareRoundCorner } from "lucide-react";
 import ControlSectionColor from "@/components/ControlSectionColor";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import LinkHelp from "@/components/LinkHelp";
@@ -19,7 +19,7 @@ import { readSectionRadius, SECTION_RADIUS_MAX } from "@/lib/section-style";
 export const EmailDocument = Node.create({ name: "doc", topNode: true, content: "section+" });
 
 // A section holds any of the issue's blocks but another section (lib/sections.js).
-const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | orderedList | horizontalRule | image | columns | callout | button | htmlBlock)+";
+const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | orderedList | horizontalRule | image | columns | callout | button | htmlBlock | countdown | discount)+";
 
 export default function BlockSection({ node, updateAttributes, editor, getPos }) {
 	const sectionView = useRef(null);
@@ -69,21 +69,18 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 			data-section-view=""
 			ref={sectionView}
 			style={colors}
-			className="my-8 border border-dashed border-foreground/20 px-4 pt-3 pb-1"
+			className="relative outline outline-dashed outline-foreground/20"
 		>
-			<div data-section-header="" contentEditable={false} className="mb-3 flex min-w-0">
+			<div data-section-header="" contentEditable={false} className="absolute top-0 right-0 z-10 translate-x-[calc(100%-4px)]">
 				<Popover open={isOpen} onOpenChange={setIsOpen}>
 					<PopoverTrigger asChild>
 						<button
 							type="button"
-							className="-ml-1 flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-full bg-muted px-2.5 text-xs font-medium outline-none transition-[background-color,scale] duration-150 ease-out hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-[state=open]:bg-accent"
+							aria-label={`Section, ${desktop} ${desktop === 1 ? "column" : "columns"}`}
+							title="Section settings"
+							className="grid size-6 place-items-center rounded-md border bg-popover text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent"
 						>
-							<SquareDashed aria-hidden="true" className="size-3.5 shrink-0" />
-							<span className="truncate">
-								Section
-								<span className="text-muted-foreground"> · {desktop} {desktop === 1 ? "column" : "columns"}</span>
-							</span>
-							<ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+							<SquareDashed aria-hidden="true" className="size-3.5" />
 						</button>
 					</PopoverTrigger>
 					<PopoverContent
@@ -139,7 +136,7 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 					</PopoverContent>
 				</Popover>
 			</div>
-			<NodeViewContent className="[&_[data-node-view-content-react]>:first-child]:mt-0" />
+			<NodeViewContent />
 		</NodeViewWrapper>
 	);
 }

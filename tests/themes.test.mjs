@@ -309,3 +309,11 @@ test("color picker channels and pasted hex use the same stored color", () => {
 	assert.equal(toHex([170, 0, 255]), "#aa00ff");
 	assert.equal(normalizeHexColor("red; opacity: 0"), null);
 });
+
+test("the color box converts its hue and shade to the hex field", async () => {
+	const { hsvToHex, toHsv } = await import("../lib/colors.js");
+	for (const hex of ["#ffffff", "#000000", "#aabbcc", "#ff0000", "#00ff00", "#0000ff"]) {
+		assert.equal(hsvToHex(toHsv(hex)), hex);
+	}
+	assert.equal(hsvToHex({ hue: 30, saturation: 1, value: 1 }), "#ff8000");
+});

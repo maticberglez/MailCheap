@@ -32,6 +32,7 @@ test("duplicating a nested image inserts a copy in the same column", async () =>
 });
 
 test("duplicating a section preserves its linked image and templates preserve the rendered link", async () => {
+	const { CountdownBlock, DiscountBlock } = await import("../components/BlockOffer.jsx");
 	const { Section } = await import("../components/BlockSection.jsx");
 	const { EditorState } = await import("@tiptap/pm/state");
 	const { duplicateBlock } = await import("../lib/editor-duplicate-block.js");
@@ -42,7 +43,7 @@ test("duplicating a section preserves its linked image and templates preserve th
 	const { readEditorTemplates, saveEditorTemplate } = await import("../lib/editor-templates.js");
 	const { renderEmail } = await import("../lib/render-email.js");
 	const { withEmailSections } = await import("../lib/sections.js");
-	const schema = getSchema([StarterKit, ImageAligned, Section, Columns, Column, Callout, ButtonBlock, HtmlBlock]);
+	const schema = getSchema([StarterKit, ImageAligned, Section, Columns, Column, Callout, ButtonBlock, HtmlBlock, CountdownBlock, DiscountBlock]);
 	const image = schema.nodes.image.create({ src: "https://example.com/photo.png", link: "https://example.com/item" });
 	const section = schema.nodes.section.create(null, image);
 	const state = EditorState.create({ doc: schema.nodes.doc.create(null, section) });

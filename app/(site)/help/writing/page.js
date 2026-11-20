@@ -286,7 +286,7 @@ export default function WritingPage() {
 			</p>
 			<p>
 				Click Add section below the email, or type <kbd>/</kbd> and choose Section to add one after the current section.
-				Click the Section label to change its columns, backgrounds or corner radius, or duplicate the section with its blocks.
+				Click the Section settings icon to change its columns, backgrounds or corner radius, or duplicate the section with its blocks.
 				A campaign can have up to {MAX_SECTIONS} sections.
 			</p>
 			<p>
@@ -312,7 +312,7 @@ export default function WritingPage() {
 			</p>
 
 			<p>Set Reply to in Write to send replies for this campaign to a different address. Leave it empty to use the usual author or newsletter address.</p>
-			<p>Click Light background or Dark background in a section’s settings. Use the color sliders or enter a hex code. Email apps that support dark mode styles use the dark background.</p>
+			<p>Click Light background or Dark background in a section’s settings. Choose a hue and pick a shade in the color box, or enter a hex code. Email apps that support dark mode styles use the dark background.</p>
 			<h2 id="email-layout">Email layout</h2>
 			<p>
 				Open a section&apos;s settings to choose one, two or three desktop columns and separate light and dark backgrounds. Drag the corner radius icon to round the section, or click it to type a value.
@@ -324,14 +324,14 @@ export default function WritingPage() {
 				to use the email theme&apos;s default sizing.
 			</p>
 
-			<h2 id="templates-and-countdowns">Templates and countdowns</h2>
+			<h2 id="templates-and-countdowns">Templates, countdowns and discounts</h2>
 			<p>
 				Open Templates in the email editor to save the email body. Put your cursor inside a section to save just that section.
 				Select a saved template to preview it. Use template asks you to confirm before replacing the entire email body.
 				Delete template also asks for confirmation. Templates stay in this browser for your newsletter and keep images and their links. Choose Duplicate section in a section&apos;s settings to copy it inside the current email.
 			</p>
 			<p>
-				Choose Countdown from the slash menu and paste the HTTPS image URL from your email countdown provider.
+				Choose Countdown from the slash menu, click the block and set a deadline. The email includes the deadline and an image that shows the remaining time when the mail app loads it.
 				Add fallback text with the deadline for readers who block images.
 			</p>
 
