@@ -5,9 +5,12 @@ import { TextSelection } from "@tiptap/pm/state";
 import { Node } from "@tiptap/core";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { ChevronDown, Copy, SquareDashed } from "lucide-react";
+import ControlSectionColor from "@/components/ControlSectionColor";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import LinkHelp from "@/components/LinkHelp";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { isHexColor } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 import { reshapeSection } from "@/lib/editor-columns";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { readSectionRadius, SECTION_RADIUS_MAX } from "@/lib/section-style";
@@ -21,6 +24,7 @@ const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | ordere
 export default function BlockSection({ node, updateAttributes, editor, getPos }) {
 	const sectionView = useRef(null);
 	const [isOpen, setIsOpen] = useState(() => Boolean(node.attrs.isNew));
+	const [colorMode, setColorMode] = useState(null);
 
 	// Opened once: the attribute stays out of the issue's HTML and its undo history.
 	useEffect(() => {
@@ -32,9 +36,10 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	const columns = node.firstChild?.type.name === "columns" ? node.firstChild : null;
 	const desktop = columns?.childCount ?? 1;
 	const mobile = columns?.attrs.mobile === "1" ? "1" : "same";
-	const colors = Object.fromEntries(["light", "dark"].filter((mode) => /^#[0-9a-f]{6}$/i.test(node.attrs[mode] ?? ""))
+	const colors = Object.fromEntries(["light", "dark"].filter((mode) => isHexColor(node.attrs[mode]))
 		.map((mode) => [`--section-${mode}-bg`, node.attrs[mode]]));
 
+	const background = (mode) => isHexColor(node.attrs[mode]) ? node.attrs[mode] : mode === "light" ? "#ffffff" : "#18181b";
 	const radius = readSectionRadius(node.attrs.radius);
 	if (radius !== null) colors["--section-radius"] = `${radius}px`;
 
@@ -109,15 +114,21 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 							/>
 							<div className="grid grid-cols-2 gap-2">
 								{["light", "dark"].map((mode) => (
-									<div key={mode} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background p-2 text-xs">
-										<label className="flex cursor-pointer items-center gap-2">
-											<input className="size-7 cursor-pointer" type="color" value={node.attrs[mode] ?? (mode === "light" ? "#ffffff" : "#18181b")} onChange={(event) => updateAttributes({ [mode]: event.target.value })} />
-											{mode === "light" ? "Light background" : "Dark background"}
-										</label>
-										{node.attrs[mode] && <button type="button" className="text-muted-foreground underline" onClick={() => updateAttributes({ [mode]: null })}>Clear</button>}
-									</div>
+									<button key={mode} type="button" aria-expanded={colorMode === mode}
+										className={cn("flex min-w-0 items-center gap-2 rounded-lg border bg-background p-2 text-left text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring", colorMode === mode && "ring-1 ring-ring")}
+										onClick={() => setColorMode(colorMode === mode ? null : mode)}
+									>
+										<span className="size-7 shrink-0 rounded-md border" aria-hidden="true" style={{ background: background(mode) }} />
+										{mode === "light" ? "Light background" : "Dark background"}
+									</button>
 								))}
 							</div>
+							{colorMode && (
+								<ControlSectionColor key={colorMode} label={colorMode === "light" ? "Light background" : "Dark background"}
+									color={background(colorMode)} onChange={(value) => updateAttributes({ [colorMode]: value })}
+									onClear={node.attrs[colorMode] ? () => updateAttributes({ [colorMode]: null }) : undefined}
+								/>
+							)}
 						</div>
 						<div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
 							<button type="button" onClick={duplicate} className="flex h-8 items-center gap-2 rounded-lg px-2 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">

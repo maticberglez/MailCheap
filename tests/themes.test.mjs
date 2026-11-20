@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getShareCardUrl } from "../lib/archive-seo.js";
-import { getContrast, normalizeHexColor } from "../lib/colors.js";
+import { getContrast, normalizeHexColor, toChannels, toHex } from "../lib/colors.js";
 import { getIssueBackground, getShareCardColors } from "../lib/share-card.js";
 import { THEME_FONTS, getFontFaceCss } from "../lib/theme-fonts.js";
 import {
@@ -300,4 +300,12 @@ test("the dashboard's swatches paint each mode's colors, MailCheap's own being t
 	const mailcheap = getSwatchColors(resolveTheme(null));
 	assert.equal(mailcheap.light.background, "var(--background)");
 	assert.equal(mailcheap.dark.accent, "var(--primary)");
+});
+
+test("color picker channels and pasted hex use the same stored color", () => {
+	const pasted = normalizeHexColor(" aBc ");
+	assert.deepEqual(toChannels(pasted), [170, 187, 204]);
+	assert.equal(toHex(toChannels(pasted)), "#aabbcc");
+	assert.equal(toHex([170, 0, 255]), "#aa00ff");
+	assert.equal(normalizeHexColor("red; opacity: 0"), null);
 });

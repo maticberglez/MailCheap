@@ -312,7 +312,7 @@ export default function WritingPage() {
 			</p>
 
 			<p>Set Reply to in Write to send replies for this campaign to a different address. Leave it empty to use the usual author or newsletter address.</p>
-			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
+			<p>Click Light background or Dark background in a section’s settings. Use the color sliders or enter a hex code. Email apps that support dark mode styles use the dark background.</p>
 			<h2 id="email-layout">Email layout</h2>
 			<p>
 				Open a section&apos;s settings to choose one, two or three desktop columns and separate light and dark backgrounds. Drag the corner radius icon to round the section, or click it to type a value.
