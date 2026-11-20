@@ -12,13 +12,13 @@ export async function GET(request, { params }) {
 	}
 
 	const options = new URL(request.url).searchParams;
-	const { size, align, color } = readOfferStyle({
-		size: options.get("size"), align: options.get("align"), color: options.get("color"),
+	const { size, align, color, weight } = readOfferStyle({
+		size: options.get("size"), align: options.get("align"), color: options.get("color"), weight: options.get("weight"),
 	});
 	return new ImageResponse(createElement("div", {
 		style: {
 			display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[align], padding: "0 16px",
-			background: "#18181b", color: color ?? "#fff", fontSize: size ?? 40, fontWeight: 700,
+			background: "#18181b", color: color ?? "#fff", fontSize: size ?? 40, fontWeight: weight ?? 700,
 		},
 	}, countdownText(deadline, Date.now(), { showDays: options.get("days") !== "0", showSeconds: options.get("seconds") === "1" })), {
 		width: 480,

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, CaseSensitive, MoveHorizontal, MoveVertical, Scissors, Timer } from "lucide-react";
+import { CalendarDays, CaseSensitive, MoveHorizontal, MoveVertical, Timer } from "lucide-react";
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import ControlFontWeight from "@/components/ControlFontWeight";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import { ALIGNMENTS } from "@/components/MenuImage";
 import ButtonCopy from "@/components/ButtonCopy";
@@ -41,15 +42,22 @@ function BlockOffer({ node, updateAttributes, editor }) {
 		}}>
 			<PopoverTrigger asChild>
 				<button type="button" disabled={!editor.isEditable}
-					className={cn("cursor-pointer gap-1 rounded-lg text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
-						countdown ? "grid w-full px-2 py-1" : "grid min-w-0 break-words")}
+					className={cn("cursor-pointer rounded-lg text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
+						countdown ? "grid w-full" : "grid min-w-0 break-words")}
 					style={{ textAlign: "inherit" }}
 				>
-					<strong className="min-w-0" style={{ color: style.color ?? "inherit", fontSize: display.size ?? (countdown && deadline ? COUNTDOWN_DIMENSIONS[0].fallback : undefined) }}>
+					<strong className={cn("min-w-0", countdown && deadline && "flex h-[88px] w-full max-w-[480px] items-center rounded-lg bg-[#18181b] px-4 font-sans text-white")}
+						style={{
+							color: style.color ?? (countdown && deadline ? "#fff" : "inherit"),
+							fontSize: display.size ?? (countdown && deadline ? COUNTDOWN_DIMENSIONS[0].fallback : undefined),
+							fontWeight: style.weight ?? 700,
+							...(countdown && deadline && { justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[display.align], justifySelf: { left: "start", center: "center", right: "end" }[display.align] }),
+						}}
+					>
 						{countdown ? (deadline ? countdownText(deadline, now, node.attrs) : "Set countdown deadline") : node.attrs.code || "Set discount code"}
 					</strong>
-					{countdown ? deadline && <span className="text-sm text-muted-foreground">{countdownDeadlineText(deadline)}</span>
-						: <span className="min-w-0 text-sm text-muted-foreground" style={{ color: labelColor ?? undefined }}>{node.attrs.label}</span>}
+					{countdown ? deadline && <span>{countdownDeadlineText(deadline)}</span>
+						: <span className="min-w-0" style={{ color: labelColor ?? undefined }}>{node.attrs.label}</span>}
 				</button>
 			</PopoverTrigger>
 			<PopoverContent side="right" align="start" sideOffset={12} className="max-h-none w-72 overflow-visible">
@@ -106,6 +114,7 @@ function BlockOffer({ node, updateAttributes, editor }) {
 							onPreview={(value) => setDragStyle(value == null ? null : { [key]: value })}
 						/>
 					))}
+					<ControlFontWeight value={style.weight} onChange={(weight) => updateAttributes({ weight })} />
 					<div className={cn("grid gap-2", !countdown && "grid-cols-2")}>
 						<OfferColor label={countdown ? "Text color" : "Code color"} value={style.color} onChange={(color) => updateAttributes({ color })} />
 						{!countdown && <OfferColor label="Label color" value={labelColor} onChange={(color) => updateAttributes({ "label-color": color ?? "auto" })} />}
@@ -116,11 +125,11 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	);
 
 	return (
-		<NodeViewWrapper contentEditable={false} style={{ textAlign: display.align }} className={cn("mb-4", countdown && "rounded-lg border p-3")}>
+		<NodeViewWrapper contentEditable={false} style={{ textAlign: display.align }} className={"mb-[var(--email-block-gap,16px)]"}>
 			{countdown ? offer : (
 				<div className="inline-flex max-w-full items-start gap-2 align-top">
-					<div className="relative min-w-0 rounded-lg border border-dashed" style={padding}>
-						<Scissors aria-hidden="true" className="absolute -top-2.5 left-2 size-5 rounded-full border bg-background p-0.5 text-muted-foreground" />
+					<div className="relative min-w-0 rounded-lg border border-dashed border-[var(--email-border)]" style={padding}>
+						<span aria-hidden="true" className="absolute -top-3 left-2 grid size-6 place-items-center rounded-full border border-[var(--email-border)] bg-[var(--email-background)] text-[15px] leading-none text-[var(--email-muted)]">✂︎</span>
 						{offer}
 					</div>
 					{node.attrs.code && <ButtonCopy value={node.attrs.code} label="Copy code" symbol={DISCOUNT_COPY_SYMBOL} />}

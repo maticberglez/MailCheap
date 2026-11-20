@@ -838,17 +838,26 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
   }
   & [data-button] > a {
     width: var(--button-width, auto);
-    border-radius: var(--button-radius, var(--radius));
+    border-radius: var(--button-radius, 999px);
     padding-block: var(--button-padding-block, 0.75rem);
     padding-inline: var(--button-padding-inline, 1.5rem);
   }
 
   &.tiptap [data-button] > span {
     width: var(--drag-width, var(--button-width, auto));
-    border-radius: var(--drag-radius, var(--button-radius, var(--radius)));
+    border-radius: var(--drag-radius, var(--button-radius, 999px));
     padding-block: calc((var(--drag-height, var(--button-height, 44px)) - 20px) / 2);
     padding-inline: var(--drag-padding-inline, var(--button-padding-inline, 1.5rem));
   }
+
+  & [data-button][data-button-weight] > a {
+    font-weight: attr(data-button-weight type(<number>), 600);
+  }
+  & [data-font-weight="400"] { font-weight: 400; }
+  & [data-font-weight="500"] { font-weight: 500; }
+  & [data-font-weight="600"] { font-weight: 600; }
+  & [data-font-weight="700"] { font-weight: 700; }
+  & [data-font-weight="800"] { font-weight: 800; }
 
   & [data-button] > a:hover {
     background: color-mix(in oklab, var(--primary) 80%, transparent);
@@ -1089,14 +1098,38 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
 
 /* Match the block margins in email previews, including across section boundaries. */
 .prose-issue[data-email-layout] {
+  background: var(--email-background);
+  color: var(--email-text);
+  font-family: var(--email-body-font);
+  font-size: 16px;
+  line-height: var(--email-line-height);
+
+  & [data-button] {
+    margin: 24px 0;
+  }
+  & [data-button] > span {
+    background: var(--email-button);
+    color: var(--email-buttonText);
+  }
   & :is(p, ul, ol, blockquote) {
     margin: 0 0 var(--email-block-gap);
   }
   & :is(h1, h2, h3) {
     margin: calc(2 * var(--email-block-gap)) 0 var(--email-heading-gap);
+    color: var(--email-heading);
+    font-family: var(--email-heading-font);
+  }
+  & a {
+    color: var(--email-link);
+  }
+  & blockquote {
+    padding-left: 16px;
+    border-left: 3px solid var(--email-border);
+    color: var(--email-quote);
   }
   & hr {
     margin: calc(2 * var(--email-block-gap)) 0;
+    border-top-color: var(--email-border);
   }
   & li > p {
     margin: 0;
@@ -1105,7 +1138,7 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
 
 [data-section-view] {
   background-color: var(--section-light-bg, transparent);
-  border-radius: var(--drag-radius, var(--section-radius, var(--radius-xl)));
+  border-radius: var(--drag-radius, var(--section-radius, 0px));
 }
 
 .prose-issue [data-section-radius] {

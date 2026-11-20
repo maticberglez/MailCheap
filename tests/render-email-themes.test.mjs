@@ -70,13 +70,13 @@ test("web fonts load from the app on screens only, and Outlook gets fonts it has
 	assert.match(html, /<!--\[if mso\]><style>body, table, td, p, a, li, blockquote \{ font-family: Georgia,serif !important; \} h1, h2, h3 \{ font-family: Georgia,serif !important; \}<\/style><!\[endif\]-->/);
 });
 
-test("the confirmation button takes the accent, its readable label and the theme's corners", () => {
+test("the confirmation button takes the accent, its readable label and pill-shaped corners", () => {
 	const buttonStyle = (content, preset) =>
 		renderEmail({ ...content, newsletter: { name: "Field notes", theme: { preset } } }).html.match(
 			/<a href="\{\{confirm_url\}\}" style="([^"]*)">Confirm my subscription<\/a>/
 		)?.[1];
 	const builtIn = getConfirmationContent({ name: "Field notes" });
-	assert.match(buttonStyle(builtIn, "poster"), /border-radius:0px;background:#ffd23f;color:#0a0a0a;/);
+	assert.match(buttonStyle(builtIn, "poster"), /border-radius:999px;background:#ffd23f;color:#0a0a0a;/);
 	assert.match(buttonStyle(builtIn, "sunset"), /border-radius:999px;/);
 
 	// A copy its owner saved in Markdown, before the editor, keeps the built-in button's inline style.
@@ -84,9 +84,9 @@ test("the confirmation button takes the accent, its readable label and the theme
 	assert.match(buttonStyle({ format: "markdown", markdown, subject: "Hi" }, "poster"), /^display:inline-block;background:#ffd23f;color:#0a0a0a;[^"]*border-radius:0px;$/);
 });
 
-test("editor pictures take the theme's corners; designed HTML emails keep their own look", () => {
+test("editor pictures start square with no extra spacing; designed HTML emails keep their own look", () => {
 	const rich = renderEmail({ format: "rich", html: '<p>Hi</p><img src="https://cdn.example.com/a.png" alt="">', subject: "Hi", newsletter: { name: "N", theme: { preset: "swiss" } } });
-	assert.match(rich.html, /<img style="display:block;max-width:100%;height:auto;margin:24px auto;border-radius:0px;"/);
+	assert.match(rich.html, /<img style="display:block;max-width:100%;height:auto;margin:0 auto;"/);
 	const designed = { format: "html", html: "<html><body><p>Hi</p></body></html>", subject: "Hi" };
 	assert.equal(renderEmail({ ...designed, newsletter: { name: "N", theme: { preset: "midnight" } } }).html, renderEmail({ ...designed, newsletter: { name: "N" } }).html);
 });

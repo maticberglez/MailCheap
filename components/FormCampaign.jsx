@@ -3,6 +3,7 @@
 import { useCallback, useDeferredValue, useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
+import { useTheme } from "@teispace/next-themes";
 import {
 	ArrowRight,
 	CalendarClock,
@@ -136,6 +137,9 @@ export default function FormCampaign({
 	const [editedFields, setEditedFields] = useState(null);
 	const contactFields = editedFields ?? savedFields;
 	const [step, setStep] = useState("write");
+	const { resolvedTheme } = useTheme();
+	const [pickedEmailMode, setPickedEmailMode] = useState(null);
+	const emailMode = pickedEmailMode ?? (resolvedTheme === "dark" ? "dark" : "light");
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const format = isHtml ? "html" : "rich";
@@ -243,7 +247,7 @@ export default function FormCampaign({
 			}),
 		[format, deferredValues, newsletter, byline]
 	);
-	const previewHtml = useMemo(() => toPreviewFrame(rendered.html), [rendered.html]);
+	const previewHtml = useMemo(() => toPreviewFrame(rendered.html, emailMode), [rendered.html, emailMode]);
 	// The preview's readers for an issue with sections: as one of its contacts, their tags and segments, or as any reader a
 	// section names, all called Jane. Only its live segments count: one deleted shows its sections to nobody.
 	const sectionPreview = useMemo(() => {
@@ -273,10 +277,11 @@ export default function FormCampaign({
 						previewText: deferredValues.previewText,
 						newsletter,
 						author: byline,
-					}).html
+					}).html,
+					emailMode
 				),
 		};
-	}, [segments, deferredValues, format, newsletter, byline]);
+	}, [segments, deferredValues, format, newsletter, byline, emailMode]);
 	// A long issue takes a few milliseconds to read, so it's read apart from typing.
 	const contentWarnings = useMemo(
 		() => getContentWarnings({ ...deferredValues, format, contactFields }),
@@ -533,7 +538,7 @@ export default function FormCampaign({
 				)}
 
 				<section ref={writeRef} aria-label="Write" hidden={step !== "write"} className="relative">
-					<PanelEmailEditor className="shadow-border animate-enter">
+					<PanelEmailEditor className="shadow-border animate-enter" mode={emailMode} onModeChange={setPickedEmailMode}>
 						<div className="divide-y divide-border/60 border-b border-border/60">
 							<RowCampaign label="Subject">
 								<div className="flex min-w-0 items-center gap-1">

@@ -53,7 +53,7 @@ export default function DesignPage() {
 					<strong>Heading weight</strong>: from regular to black, as far as the heading font goes.
 				</li>
 				<li>
-					<strong>Corners</strong>: square to round, for buttons, cards and pictures.
+					<strong>Corners</strong>: square to round, for cards and pictures. Email editor buttons start pill-shaped and have their own corner setting.
 				</li>
 				<li>
 					<strong>Shadow</strong>: none, soft, lifted or hard, for cards and the signup form on your website.

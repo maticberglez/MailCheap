@@ -71,3 +71,15 @@ test("the dashboard's email previews open their links outside the frame, and the
 	assert.ok(frame.includes('href="https://example.com/post"'));
 	assert.match(read("app/(site)/help/writing/page.js"), /A link you click in it opens in a new tab/);
 });
+
+test("switching an existing preview between modes keeps the same document and restores the source rules", async () => {
+	const { applyEmailPreviewMode } = await import("../lib/email-preview.js");
+	const css = { textContent: "@media (prefers-color-scheme: dark) { body { color: white } }" };
+	const frame = { contentDocument: { querySelectorAll: () => [css] } };
+	applyEmailPreviewMode(frame, "light");
+	assert.match(css.textContent, /@media not all/);
+	applyEmailPreviewMode(frame, "dark");
+	assert.match(css.textContent, /@media all/);
+	applyEmailPreviewMode(frame, "light");
+	assert.match(css.textContent, /@media not all/);
+});

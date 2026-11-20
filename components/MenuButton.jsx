@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { BadgeCheck, CornerDownLeft, MoveHorizontal, MoveVertical, SlidersHorizontal, SquareRoundCorner, Trash2 } from "lucide-react";
+import ControlFontWeight from "@/components/ControlFontWeight";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import ButtonEditorLink from "@/components/ButtonEditorLink";
 import { ButtonFormat } from "@/components/MenuFormat";
@@ -153,6 +154,10 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 								}}
 							/>
 						))}
+						<ControlFontWeight value={button?.weight} onChange={(weight) => {
+							const found = findButton(editor.state);
+							if (found && found.node.attrs.weight !== weight) editor.view.dispatch(editor.state.tr.setNodeAttribute(found.pos, "weight", weight));
+						}} />
 					</div>
 				) : (
 					<>
@@ -210,7 +215,7 @@ function focusField(input) {
 
 // A press on the toolbar leaves the focus in the button's text, so only the link field takes it.
 function keepFocus(event) {
-	if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+	if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) event.preventDefault();
 }
 
 const SIZE_ICONS = { radius: SquareRoundCorner, width: MoveHorizontal, height: MoveVertical };

@@ -174,14 +174,14 @@ describe("writing on a button in the editor", () => {
 });
 
 describe("buttons in emails", () => {
-	test("an email draws a button in the newsletter's button colors and corners, where it sits in the column", () => {
+	test("an email draws a button in the newsletter's button colors and default pill corners, where it sits in the column", () => {
 		const plain = emailBody(render(`<p>Intro</p>${button("Read the full story", STORY)}<p>Outro</p>`).html);
 		assert.match(plain, /^<p>Intro<\/p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr><td align="center"><table role="presentation" align="center"/);
-		assert.match(plain, /<td class="email-button" align="center" bgcolor="#18181b" style="border-radius:8px;background:#18181b;mso-padding-alt:12px 24px;"><a href="https:\/\/example\.com\/story" style="display:inline-block;padding:12px 24px;border-radius:8px;background:#18181b;color:#ffffff;font-family:-apple-system,[^"]*;font-size:16px;font-weight:600;line-height:20px;text-decoration:none;">Read the full story<\/a><\/td><\/tr><\/table><\/td><\/tr><\/table><p>Outro<\/p>$/);
+		assert.match(plain, /<td class="email-button" align="center" bgcolor="#18181b" style="border-radius:999px;background:#18181b;mso-padding-alt:12px 24px;"><a href="https:\/\/example\.com\/story" style="display:inline-block;padding:12px 24px;border-radius:999px;background:#18181b;color:#ffffff;font-family:-apple-system,[^"]*;font-size:16px;font-weight:600;line-height:20px;text-decoration:none;">Read the full story<\/a><\/td><\/tr><\/table><\/td><\/tr><\/table><p>Outro<\/p>$/);
 
 		const poster = emailBody(render(button("Join", STORY, "left"), { preset: "poster" }).html);
 		assert.match(poster, /<td align="left"><table role="presentation" align="left"/);
-		assert.match(poster, /bgcolor="#ffd23f" style="border-radius:0px;background:#ffd23f;/);
+		assert.match(poster, /bgcolor="#ffd23f" style="border-radius:999px;background:#ffd23f;/);
 		assert.match(poster, /color:#0a0a0a;font-family:'MC Archivo',/, "a label that reads on a light accent, in the theme's font");
 		assert.match(emailBody(render(button("Join", STORY, "right"), { preset: "sunset" }).html), /<td align="right">[^]*border-radius:999px;/);
 	});

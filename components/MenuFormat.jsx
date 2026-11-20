@@ -1,20 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { NodeSelection } from "@tiptap/pm/state";
-import { Bold, CornerDownLeft, Heading1, Heading2, Italic, Link, Strikethrough, TextQuote, Unlink } from "lucide-react";
+import { Bold, CaseSensitive, CornerDownLeft, Heading1, Heading2, Italic, Link, Strikethrough, TextQuote, Unlink } from "lucide-react";
+import ControlFontWeight from "@/components/ControlFontWeight";
 import { findButton } from "@/lib/editor-button";
 import { normalizeUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 	const menuRef = useRef(null);
+	const [showWeight, setShowWeight] = useState(false);
 	const state = useEditorState({
 		editor,
 		selector: ({ editor: current }) => ({
 			isBold: current.isActive("bold"),
+			weight: current.getAttributes("fontWeight").weight ?? null,
 			isItalic: current.isActive("italic"),
 			isStrike: current.isActive("strike"),
 			isLink: current.isActive("link"),
@@ -25,7 +28,7 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 		}),
 	});
 	const options = useMemo(
-		() => ({ placement: "top", offset: 8, flip: true, shift: { padding: 8 }, onHide: () => onEditLink(false) }),
+		() => ({ placement: "top", offset: 8, flip: true, shift: { padding: 8 }, onHide: () => { onEditLink(false); setShowWeight(false); } }),
 		[onEditLink]
 	);
 
@@ -93,8 +96,17 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 							<CornerDownLeft />
 						</ButtonFormat>
 					</form>
+				) : showWeight ? (
+					<div className="min-w-40 p-2">
+						<ControlFontWeight value={state.weight} onChange={(weight) => {
+							const chain = editor.chain().focus();
+							(weight ? chain.setMark("fontWeight", { weight }) : chain.unsetMark("fontWeight")).run();
+							setShowWeight(false);
+						}} />
+					</div>
 				) : (
 					<>
+						<ButtonFormat label="Font weight" isActive={state.weight !== null} onClick={() => setShowWeight(true)}><CaseSensitive /></ButtonFormat>
 						<ButtonFormat label="Bold" isActive={state.isBold} onClick={() => editor.chain().focus().toggleBold().run()}>
 							<Bold />
 						</ButtonFormat>
@@ -171,14 +183,14 @@ function getBody() {
 // A press on the menu leaves the focus where it was, as Safari and Firefox do for buttons anyway, so only the link field
 // takes it from the editor.
 function keepFocus(event) {
-	if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+	if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) event.preventDefault();
 }
 
 // Text selections only: images and dividers have nothing to format, and buttons have their own toolbar
 // (components/MenuButton.jsx).
-function shouldShowMenu({ editor, view, state, from, to }) {
+function shouldShowMenu({ editor, element, view, state, from, to }) {
 	if (!editor.isEditable || from === to || state.selection instanceof NodeSelection || findButton(state)) return false;
-	return view.hasFocus();
+	return view.hasFocus() || element.contains(document.activeElement);
 }
 
 const MENU_KEY = "formatMenu";

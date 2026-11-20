@@ -286,7 +286,7 @@ export default function WritingPage() {
 			</p>
 			<p>
 				Click Add section below the email, or type <kbd>/</kbd> and choose Section to add one after the current section.
-				Click the Section settings icon to change its columns, backgrounds or corner radius, or duplicate the section with its blocks.
+				Click the Section settings icon to change its columns, backgrounds or corner radius, or duplicate the section with its blocks. Sections start with square corners.
 				The trash icon below the settings icon deletes the section and its blocks. A campaign can have up to {MAX_SECTIONS} sections.
 			</p>
 			<p>
@@ -320,8 +320,8 @@ export default function WritingPage() {
 				Stacking depends on the reader&apos;s email app. Reducing the column count keeps the blocks in order.
 			</p>
 			<p>
-				Select a button and choose Button style. Drag the corner radius, width or height icon to resize it, or click the icon to type a value. Clear a field
-				to use the email theme&apos;s default sizing.
+				Select a button and choose Button style. Drag the corner radius, width or height icon to resize it, or click the icon to type a value. Buttons start with pill-shaped corners. Clear a field
+				to use the default sizing. Choose Font weight for a button, discount or countdown in its settings, or select text and choose Font weight from the formatting menu.
 			</p>
 
 			<h2 id="templates-and-countdowns">Templates, countdowns and discounts</h2>

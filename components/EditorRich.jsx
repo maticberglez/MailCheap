@@ -26,6 +26,7 @@ import { BlockHandle } from "@/lib/editor-block-handle";
 import { ButtonBlock, findButton } from "@/lib/editor-button";
 import { Column, Columns } from "@/lib/editor-columns";
 import { Callout } from "@/lib/editor-callout";
+import { FontWeight } from "@/lib/editor-font-weight";
 import { findWords } from "@/lib/editor-find";
 import { ImageAligned } from "@/lib/editor-image";
 import { MergeTags, setEditorFields } from "@/lib/editor-merge-tags";
@@ -74,7 +75,17 @@ export default function EditorRich({
 	const [overlayContainer, setOverlayContainer] = useState(null);
 	const unpin = useCallback(() => setPinned(null), []);
 	const segmentIds = useMemo(() => (sectionSegments ?? []).map(({ id }) => id), [sectionSegments]);
-	const emailGap = sectionLayouts ? getEmailTheme(resolveTheme(newsletter?.theme)).gap : null;
+	const emailTheme = useMemo(() => sectionLayouts ? getEmailTheme(resolveTheme(newsletter?.theme)) : null, [sectionLayouts, newsletter?.theme]);
+	const emailStyle = emailTheme && Object.entries({
+		"--email-block-gap": `${emailTheme.gap}px`,
+		"--email-heading-gap": `${Math.round(emailTheme.gap * 0.75)}px`,
+		"--email-line-height": emailTheme.lineHeight,
+		"--email-body-font": emailTheme.fonts.body,
+		"--email-heading-font": emailTheme.fonts.heading ?? emailTheme.fonts.body,
+		...Object.fromEntries(["background", "text", "heading", "muted", "border", "link", "quote", "surface", "button", "buttonText"].map((key) => [
+			`--email-${key}`, `light-dark(${emailTheme[key]}, ${emailTheme.dark[key]})`,
+		])),
+	}).map(([key, value]) => `${key}:${value}`).join(";");
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
@@ -105,6 +116,7 @@ export default function EditorRich({
 			...(sectionLayouts ? [EmailDocument, EmailSection] : [Section]),
 			BlockHandle,
 			UndoDelete,
+			FontWeight,
 			MergeTags.configure({ contactFields }),
 			Problems.configure({ contactFields }),
 			Placeholder.configure({
@@ -130,7 +142,7 @@ export default function EditorRich({
 			attributes: {
 				class: `prose-issue ${sectionLayouts ? "" : minHeight} px-5 pt-5 ${sectionLayouts ? "" : "pb-5"} outline-none [@media(pointer:fine)]:px-12`,
 				"aria-label": "Content",
-				...(emailGap && { "data-email-layout": "", style: `--email-block-gap:${emailGap}px;--email-heading-gap:${Math.round(emailGap * 0.75)}px` }),
+				...(emailStyle && { "data-email-layout": "", style: emailStyle }),
 			},
 			handleDoubleClickOn: (view, _pos, node, nodePos, _event, direct) => {
 				if (!direct || !view.editable || node.type.name !== "image" || node.attrs.src?.startsWith("blob:")) return false;
@@ -196,6 +208,7 @@ export default function EditorRich({
 
 	return (
 		<>
+			{emailTheme?.fonts.faces && <style>{emailTheme.fonts.faces}</style>}
 			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sectionSegments)} />}
 			<div className={sectionLayouts ? minHeight : undefined}>
 				{/* Tiptap moves the content container's children during teardown. Keep React portals beside it. */}

@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useTheme } from "@teispace/next-themes";
 import { createPortal } from "react-dom";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { forEmail } from "@/lib/sections";
 import PanelEmailEditor from "@/components/PanelEmailEditor";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import { Mail, Pencil } from "lucide-react";
 import { sendAutomationTest } from "@/app/(app)/automations/actions";
 import { Button } from "@/components/ui/button";
-import { openLinksOutside } from "@/lib/email-preview";
+import { applyEmailPreviewMode, openLinksOutside } from "@/lib/email-preview";
 import { fillForReader, SAMPLE_READER } from "@/lib/merge-tags";
 import { renderEmail, UNSUBSCRIBE_PLACEHOLDER, withResponsiveImages } from "@/lib/render-email";
 
@@ -17,6 +18,10 @@ export default function PreviewAutomationEmail({ node, addresses, editHref, onSa
 	const [isSending, startSending] = useTransition();
 	const [result, setResult] = useState("");
 	const resizeObserver = useRef(null);
+	const frameRef = useRef(null);
+	const { resolvedTheme } = useTheme();
+	const previewMode = mode ?? (resolvedTheme === "dark" ? "dark" : "light");
+	useLayoutEffect(() => applyEmailPreviewMode(frameRef.current, previewMode), [previewMode]);
 	useEffect(() => () => resizeObserver.current?.disconnect(), []);
 	const sender = {
 		name: addresses.name || addresses.senderName,
@@ -33,6 +38,7 @@ export default function PreviewAutomationEmail({ node, addresses, editHref, onSa
 
 	function loadPreview(event) {
 		const frame = event.currentTarget;
+		applyEmailPreviewMode(frame, previewMode);
 		openLinksOutside(frame);
 		const document = frame.contentDocument;
 		const settings = frame.closest("aside");
@@ -97,7 +103,7 @@ export default function PreviewAutomationEmail({ node, addresses, editHref, onSa
 					</div>
 				</header>
 				{node.html ? (
-					<iframe title="Email preview" sandbox="allow-same-origin" srcDoc={preview.html} style={{ colorScheme: mode }} onLoad={loadPreview}
+					<iframe ref={frameRef} title="Email preview" sandbox="allow-same-origin" srcDoc={preview.html} style={{ colorScheme: mode }} onLoad={loadPreview}
 						className={editHref ? "block h-[min(640px,65vh)] w-full" : "block w-full"} />
 				) : <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
 			</article>

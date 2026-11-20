@@ -156,3 +156,14 @@ test("older coupons keep their shared text color and can reset the label indepen
 	assert.match(reset, /<strong style="color:#123456;">CODE<\/strong>/);
 	assert.match(reset, /<span>Label<\/span>/);
 });
+
+test("text, buttons and offers keep validated font weights in review markup", () => {
+	const html = '<p><span data-font-weight="500">Medium</span> <span data-font-weight="9000">Invalid</span></p><div data-button="" data-button-weight="800"><a href="https://example.com">Shop</a></div><div data-discount="" data-offer-weight="400"><strong>SAVE</strong><br><span>Today</span></div><div data-countdown="1893495600000" data-offer-weight="600"><span>Ends January 1</span></div>';
+	const { html: review } = renderEmail({ format: "rich", html });
+	assert.match(review, /<span style="font-weight:500;">Medium<\/span> <span>Invalid<\/span>/);
+	assert.match(review, /border-radius:999px;[^"]*font-size:16px;font-weight:800;[^"]*">Shop<\/a>/);
+	assert.match(review, /<strong style="font-weight:400;">SAVE<\/strong>/);
+	assert.match(review, /countdown\/1893495600000\?weight=600/);
+	const square = renderEmail({ format: "rich", html: '<div data-button="" data-button-radius="0"><a href="https://example.com">Shop</a></div>' }).html;
+	assert.match(square, /border-radius:0px;[^"]*">Shop<\/a>/);
+});
