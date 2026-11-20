@@ -124,12 +124,26 @@ test("countdown and static discount blocks render from section content", async (
 	const deadline = Date.UTC(2030, 0, 1);
 	assert.equal(countdownText(deadline, deadline - (25 * 60 + 3) * 60_000), "1d  1h  3m");
 	assert.equal(countdownText(deadline, deadline), "Offer ended");
+	assert.equal(countdownText(deadline, deadline - 86_405_000, { showDays: false, showSeconds: true }), "24h  5s");
+	assert.equal(countdownText(deadline, deadline - 60_000, { showSeconds: true }), "1m");
+	assert.equal(countdownText(deadline, deadline - 5000), "<1m");
 	assert.equal(readCountdownDeadline(`${deadline}<svg>`), null);
-	const html = forEmail(`<section data-section=""><div data-countdown="${deadline}"><span>Deadline</span></div><div data-discount=""><strong>SAVE&amp;20</strong><br><span>Summer sale</span></div></section>`);
+	const html = forEmail(`<section data-section=""><div data-countdown="${deadline}" data-countdown-days="0" data-countdown-seconds="1" data-offer-size="32"><span>Deadline</span></div><div data-discount="" data-offer-align="right" data-offer-color="#AC12FF" data-offer-size="40"><strong>SAVE&amp;20</strong><br><span>Summer sale</span></div></section>`);
 	const sent = renderEmail({ format: "rich", html, fontBaseUrl: "https://example.com" });
-	assert.match(sent.html, new RegExp(`src="https://example.com/api/countdown/${deadline}"`));
+	assert.match(sent.html, new RegExp(`src="https://example.com/api/countdown/${deadline}\\?days=0&amp;seconds=1&amp;size=32"`));
 	assert.match(sent.html, /Ends Jan 1, 2030/);
 	assert.match(sent.text, /SAVE&20/);
+	assert.match(sent.html, /text-align:right;[^"]*border:1px dashed/);
+	assert.match(sent.html, /color:#ac12ff;font-size:40px;/);
+	assert.match(sent.html, /href="https:\/\/example.com\/copy-discount#SAVE%2620"/);
 	assert.match(sent.text, /Summer sale/);
 	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
+});
+
+test("offer styling rejects invalid alignment, size and color before drawing email", () => {
+	const html = '<div data-discount="" data-offer-align="justify" data-offer-size="99" data-offer-color="red"><strong>CODE</strong><br><span></span></div>';
+	const sent = renderEmail({ format: "rich", html });
+	assert.match(sent.html, /text-align:center;[^"]*border:1px dashed/);
+	assert.match(sent.html, /<strong style="">CODE<\/strong>/);
+	assert.doesNotMatch(sent.html, /data-offer-|font-size:99px|color:red/);
 });

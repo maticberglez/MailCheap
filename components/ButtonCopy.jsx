@@ -7,23 +7,27 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 // hasLabel: the label shows next to the icon, in an outlined button, for code that's the page's point to copy.
 export default function ButtonCopy({ value, label = "Copy", hasLabel = false }) {
-	const [isCopied, setIsCopied] = useState(false);
+	const [feedback, setFeedback] = useState(null);
 	const timeout = useRef(null);
 
 	async function copy() {
-		await navigator.clipboard.writeText(value);
-		setIsCopied(true);
+		try {
+			await navigator.clipboard.writeText(value);
+			setFeedback("Copied");
+		} catch {
+			setFeedback("Couldn’t copy");
+		}
 		clearTimeout(timeout.current);
-		timeout.current = setTimeout(() => setIsCopied(false), 1500);
+		timeout.current = setTimeout(() => setFeedback(null), 1500);
 	}
 
-	const Icon = isCopied ? Check : Copy;
+	const Icon = feedback === "Copied" ? Check : Copy;
 
 	if (hasLabel) {
 		return (
 			<Button type="button" variant="outline" size="sm" onClick={copy} className="min-w-20">
-				<Icon key={String(isCopied)} data-icon="inline-start" className="animate-icon-in" />
-				<span aria-live="polite">{isCopied ? "Copied" : label}</span>
+				<Icon key={String(feedback)} data-icon="inline-start" className="animate-icon-in" />
+				<span aria-live="polite">{feedback ?? label}</span>
 			</Button>
 		);
 	}
@@ -39,10 +43,10 @@ export default function ButtonCopy({ value, label = "Copy", hasLabel = false }) 
 					aria-label={label}
 					className="relative text-muted-foreground after:absolute after:-inset-1.5 hover:text-foreground"
 				>
-					<Icon key={String(isCopied)} className="animate-icon-in" />
+					<Icon key={String(feedback)} className="animate-icon-in" />
 				</Button>
 			</TooltipTrigger>
-			<TooltipContent>{isCopied ? "Copied" : label}</TooltipContent>
+			<TooltipContent>{feedback ?? label}</TooltipContent>
 		</Tooltip>
 	);
 }

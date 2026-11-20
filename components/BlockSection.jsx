@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { TextSelection } from "@tiptap/pm/state";
 import { Node } from "@tiptap/core";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { Copy, SquareDashed, SquareRoundCorner } from "lucide-react";
 import ControlSectionColor from "@/components/ControlSectionColor";
 import ControlEditorSize from "@/components/ControlEditorSize";
+import { EmailModePreviewContext } from "@/components/PanelEmailEditor";
 import LinkHelp from "@/components/LinkHelp";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isHexColor } from "@/lib/colors";
@@ -25,6 +26,14 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	const sectionView = useRef(null);
 	const [isOpen, setIsOpen] = useState(() => Boolean(node.attrs.isNew));
 	const [colorMode, setColorMode] = useState(null);
+	const setModePreview = use(EmailModePreviewContext);
+	const previewMode = isOpen ? colorMode : null;
+
+	useEffect(() => {
+		if (!previewMode || !setModePreview) return;
+		setModePreview(previewMode);
+		return () => setModePreview(null);
+	}, [previewMode, setModePreview]);
 
 	// Opened once: the attribute stays out of the issue's HTML and its undo history.
 	useEffect(() => {
@@ -60,6 +69,7 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 		const tr = typeof pos === "number" && duplicateBlock(editor.state, pos);
 		if (!tr) return;
 		setIsOpen(false);
+		setColorMode(null);
 		editor.view.dispatch(tr);
 		editor.commands.focus();
 	}
@@ -67,12 +77,13 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	return (
 		<NodeViewWrapper
 			data-section-view=""
+			data-email-editor-mode={setModePreview ? undefined : previewMode ?? undefined}
 			ref={sectionView}
 			style={colors}
-			className="relative outline outline-dashed outline-foreground/20"
+			className="relative outline outline-dashed outline-foreground/20 motion-safe:transition-colors motion-safe:duration-200"
 		>
 			<div data-section-header="" contentEditable={false} className="absolute top-0 right-0 z-10 translate-x-[calc(100%-4px)]">
-				<Popover open={isOpen} onOpenChange={setIsOpen}>
+				<Popover open={isOpen} onOpenChange={(next) => { setIsOpen(next); if (!next) setColorMode(null); }}>
 					<PopoverTrigger asChild>
 						<button
 							type="button"

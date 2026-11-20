@@ -1114,11 +1114,13 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
 }
 
 .dark [data-section-view],
-[data-email-editor-mode="dark"] [data-section-view] {
+[data-email-editor-mode="dark"] [data-section-view],
+[data-section-view][data-email-editor-mode="dark"] {
   background-color: var(--section-dark-bg, var(--section-light-bg, transparent));
 }
 
-[data-email-editor-mode="light"] [data-section-view] {
+[data-email-editor-mode="light"] [data-section-view],
+[data-section-view][data-email-editor-mode="light"] {
   background-color: var(--section-light-bg, transparent);
 }
 

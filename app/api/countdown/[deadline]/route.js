@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { ImageResponse } from "next/og";
 import { countdownText, readCountdownDeadline } from "@/lib/countdown";
+import { readOfferStyle } from "@/lib/offer-style";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 
 export async function GET(request, { params }) {
@@ -10,14 +11,18 @@ export async function GET(request, { params }) {
 		return new Response(null, { status: 429, headers: { "Retry-After": "60" } });
 	}
 
+	const options = new URL(request.url).searchParams;
+	const { size, align, color } = readOfferStyle({
+		size: options.get("size"), align: options.get("align"), color: options.get("color"),
+	});
 	return new ImageResponse(createElement("div", {
 		style: {
-			display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: "center",
-			background: "#18181b", color: "#fff", fontSize: 40, fontWeight: 700,
+			display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[align], padding: "0 16px",
+			background: "#18181b", color: color ?? "#fff", fontSize: size ?? 40, fontWeight: 700,
 		},
-	}, countdownText(deadline)), {
+	}, countdownText(deadline, Date.now(), { showDays: options.get("days") !== "0", showSeconds: options.get("seconds") === "1" })), {
 		width: 480,
 		height: 88,
-		headers: { "Cache-Control": "public, max-age=0, s-maxage=30" },
+		headers: { "Cache-Control": options.get("seconds") === "1" ? "no-store" : "public, max-age=0, s-maxage=30" },
 	});
 }

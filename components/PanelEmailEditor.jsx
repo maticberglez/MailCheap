@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@teispace/next-themes";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
+export const EmailModePreviewContext = createContext(null);
+
 export default function PanelEmailEditor({ children, className, mode: sharedMode, onModeChange }) {
 	const { resolvedTheme } = useTheme();
 	const [pickedMode, setPickedMode] = useState(null);
-	const mode = sharedMode ?? pickedMode ?? resolvedTheme;
+	const [previewMode, setPreviewMode] = useState(null);
+	const mode = previewMode ?? sharedMode ?? pickedMode ?? resolvedTheme;
 	const changeMode = onModeChange ?? setPickedMode;
 
 	return (
@@ -19,7 +22,9 @@ export default function PanelEmailEditor({ children, className, mode: sharedMode
 				<Switch aria-label="Dark mode" checked={mode === "dark"} onCheckedChange={(dark) => changeMode(dark ? "dark" : "light")} />
 				<Moon className="size-4" aria-hidden="true" />
 			</label>
-			{typeof children === "function" ? children(mode) : children}
+			<EmailModePreviewContext value={setPreviewMode}>
+				{typeof children === "function" ? children(mode) : children}
+			</EmailModePreviewContext>
 		</div>
 	);
 }

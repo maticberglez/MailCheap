@@ -127,7 +127,7 @@ export default function EditorRich({
 		editorProps: {
 			// With a mouse, the left padding holds the blocks' drag handle (lib/editor-block-handle.js).
 			attributes: {
-				class: `prose-issue ${minHeight} px-5 py-5 outline-none [@media(pointer:fine)]:px-12`,
+				class: `prose-issue ${sectionLayouts ? "" : minHeight} px-5 pt-5 ${sectionLayouts ? "" : "pb-5"} outline-none [@media(pointer:fine)]:px-12`,
 				"aria-label": "Content",
 				...(emailGap && { "data-email-layout": "", style: `--email-block-gap:${emailGap}px;--email-heading-gap:${Math.round(emailGap * 0.75)}px` }),
 			},
@@ -196,14 +196,16 @@ export default function EditorRich({
 	return (
 		<>
 			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sectionSegments)} />}
-			<EditorContent editor={editor} className="relative" />
-			{sectionLayouts && (
-				<div className="flex justify-center px-4 pb-5">
-					<Button type="button" variant="outline" size="sm" onClick={() => {
-						insertEmailSection(editor.chain().focus(), true).run();
-					}}><Plus /> Add section</Button>
-				</div>
-			)}
+			<div className={sectionLayouts ? minHeight : undefined}>
+				<EditorContent editor={editor} className="relative" />
+				{sectionLayouts && (
+					<div className="flex justify-center px-4 pb-5">
+						<Button type="button" variant="outline" size="sm" onClick={() => {
+							insertEmailSection(editor.chain().focus(), true).run();
+						}}><Plus /> Add section</Button>
+					</div>
+				)}
+			</div>
 			<GutterProblems
 				editor={editor}
 				gutterRef={gutterRef}
