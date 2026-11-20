@@ -108,3 +108,12 @@ test("rich email documents wrap older loose blocks and keep existing section rul
 	assert.equal(tr.selection.$from.parent.type.name, "paragraph");
 	tr.doc.check();
 });
+
+test("a section renders its layout settings trigger", async () => {
+	const { createElement } = await import("react");
+	const { renderToStaticMarkup } = await import("react-dom/server");
+	const { default: BlockSection } = await import("../components/BlockSection.jsx");
+	const html = renderToStaticMarkup(createElement(BlockSection, { node: { attrs: {} } }));
+	assert.match(html, /data-section-header/);
+	assert.match(html, /Section/);
+});

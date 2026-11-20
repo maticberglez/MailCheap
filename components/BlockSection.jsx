@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { TextSelection } from "@tiptap/pm/state";
 import { Node } from "@tiptap/core";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { ChevronDown, Copy, SquareDashed } from "lucide-react";
+import { ChevronDown, Copy, SquareDashed, SquareRoundCorner } from "lucide-react";
 import ControlSectionColor from "@/components/ControlSectionColor";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import LinkHelp from "@/components/LinkHelp";
