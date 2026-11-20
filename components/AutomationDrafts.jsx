@@ -26,10 +26,10 @@ import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAuto
 
 const noop = () => () => {};
 
-export default function AutomationDrafts({ scope, draftId, emailNodeId, selectedNodeId, addresses }) {
+export default function AutomationDrafts({ scope, draftId, emailNodeId, selectedNodeId, addresses, isOverview = false }) {
 	const ready = useSyncExternalStore(noop, () => true, () => false);
 	if (!ready) return <p className="p-4 text-sm text-muted-foreground">Loading automations…</p>;
-	return draftId ? <OpenDraft scope={scope} id={draftId} emailNodeId={emailNodeId} selectedNodeId={selectedNodeId} addresses={addresses} /> : <DraftList scope={scope} />;
+	return draftId ? <OpenDraft scope={scope} id={draftId} emailNodeId={emailNodeId} selectedNodeId={selectedNodeId} addresses={addresses} /> : <DraftList scope={scope} isOverview={isOverview} />;
 }
 
 function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
@@ -161,7 +161,7 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 	);
 }
 
-function DraftList({ scope }) {
+function DraftList({ scope, isOverview }) {
 	const router = useRouter();
 	const [initial] = useState(() => {
 		try {
@@ -222,21 +222,27 @@ function DraftList({ scope }) {
 		if (open) router.push(`/automations/${id}`);
 	}
 
+	const shownDrafts = isOverview
+		? drafts.toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")).slice(0, 5)
+		: drafts;
+
 	return (
 		<>
-			<HeaderPage title="Automations">
-				<DialogNewDraft title="New automation" copyTitle="Copy an automation"
-					drafts={drafts.map((draft) => ({ id: draft.id, subject: draft.name, status: "draft", at: draft.updatedAt,
-						thumbnail: <GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /> }))}
-					onBlank={() => createDraft(null, true)}
-					onCopy={(id) => {
-						const source = drafts.find((draft) => draft.id === id);
-						return source ? createDraft(source, true) : { error: "Automation draft unavailable." };
-					}}>
-					<Button disabled={Boolean(initial.error)}><Plus data-icon="inline-start" /> New</Button>
-				</DialogNewDraft>
-			</HeaderPage>
-			{drafts.length ? (
+			{!isOverview && (
+				<HeaderPage title="Automations">
+					<DialogNewDraft title="New automation" copyTitle="Copy an automation"
+						drafts={drafts.map((draft) => ({ id: draft.id, subject: draft.name, status: "draft", at: draft.updatedAt,
+							thumbnail: <GitBranch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" /> }))}
+						onBlank={() => createDraft(null, true)}
+						onCopy={(id) => {
+							const source = drafts.find((draft) => draft.id === id);
+							return source ? createDraft(source, true) : { error: "Automation draft unavailable." };
+						}}>
+						<Button disabled={Boolean(initial.error)}><Plus data-icon="inline-start" /> New</Button>
+					</DialogNewDraft>
+				</HeaderPage>
+			)}
+			{shownDrafts.length ? (
 				<div className="animate-enter overflow-hidden rounded-xl shadow-border">
 					<Table>
 						<TableHeader>
@@ -251,7 +257,7 @@ function DraftList({ scope }) {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{drafts.map((draft) => (
+							{shownDrafts.map((draft) => (
 								<TableRow key={draft.id} className="relative">
 									<TableCell className="w-full max-w-0 py-2 pl-4 sm:w-1/2">
 										<div className="flex min-w-0 items-center gap-2">
@@ -280,7 +286,9 @@ function DraftList({ scope }) {
 						</TableBody>
 					</Table>
 				</div>
-			) : !initial.error && <StateEmpty icon={GitBranch} title="No automations yet" />}
+			) : !initial.error && (isOverview
+				? <p className="rounded-xl px-4 py-6 text-center text-sm text-muted-foreground shadow-border">No automations yet</p>
+				: <StateEmpty icon={GitBranch} title="No automations yet" />)}
 			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 			<Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
 				<DialogContent>

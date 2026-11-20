@@ -28,9 +28,9 @@ export default function SkeletonCampaigns({ rows = 8, hasActions = false }) {
 				<TableBody>
 					{Array.from({ length: rows }, (_, index) => (
 						<TableRow key={index} className="hover:bg-transparent">
-							<TableCell className="w-full max-w-0 py-3 pl-4 sm:w-1/2">
-								<div className="flex min-w-0 items-center gap-3.5">
-									<Skeleton className="h-10 w-16 shrink-0" />
+							<TableCell className="w-full max-w-0 py-2 pl-4 sm:w-1/2">
+								<div className="flex min-w-0 items-center gap-2">
+									<Skeleton className="h-4 w-6 shrink-0" />
 									<div className="min-w-0 flex-1">
 										<Skeleton className="h-3.5" style={{ width: `${SUBJECT_WIDTHS[index % SUBJECT_WIDTHS.length]}%` }} />
 									</div>
@@ -49,7 +49,7 @@ export default function SkeletonCampaigns({ rows = 8, hasActions = false }) {
 							</TableCell>
 							{hasActions && (
 								<TableCell className="pr-2">
-									<span className="block size-7" />
+									<span className="block size-8" />
 								</TableCell>
 							)}
 						</TableRow>

@@ -45,9 +45,9 @@ export default function TableCampaigns({ campaigns, newsletter, hasActions = fal
 						const date = campaign.sentAt || campaign.startedAt;
 						return (
 							<TableRow key={id} className="relative">
-								<TableCell className="w-full max-w-0 py-3 pl-4 sm:w-1/2">
-									<div className="flex min-w-0 items-center gap-3.5">
-										<ThumbnailCampaign campaign={campaign} newsletter={newsletter} hasBadge={false} />
+								<TableCell className="w-full max-w-0 py-2 pl-4 sm:w-1/2">
+									<div className="flex min-w-0 items-center gap-2">
+										<ThumbnailCampaign campaign={campaign} newsletter={newsletter} width={24} height={16} hasBadge={false} />
 										<Link
 											href={`/campaigns/${id}`}
 											className="min-w-0 truncate font-medium after:absolute after:inset-0"

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { ChevronRight, Newspaper, Plus } from "lucide-react";
+import AutomationDrafts from "@/components/AutomationDrafts";
 import BannerUsage from "@/components/BannerUsage";
 import ButtonPeriod from "@/components/ButtonPeriod";
 import CardUsage from "@/components/CardUsage";
@@ -28,7 +29,7 @@ import { getAccountPlan } from "@/lib/plans";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { findAccountDomains } from "@/lib/sender";
 import { getOwnDomainNudge, isOwnDomainNudgeShown } from "@/lib/sender-rules";
-import { OWNER_ROLE } from "@/lib/team-rules";
+import { OWNER_ROLE, hasRole } from "@/lib/team-rules";
 import { TIME_ZONE_COOKIE, resolveTimeZone, timeZoneLabel, toDateKey } from "@/lib/time-zone";
 import { getUsage, hasWelcomeEmailsOn } from "@/lib/usage";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ export default async function OverviewPage({ searchParams }) {
 	const points = getPeriodPoints(period, { timeZone, now });
 	const fades = "transition-opacity duration-200 group-has-[[data-pending]]/overview:opacity-60";
 	const selectedId = selected?._id.toString();
+	const automationScope = `welcome-flow:${view.user.id}:${selectedId}`;
 	const accountId = account._id;
 	const hasPlan = isOwner && hasActiveSubscription(account);
 	const isWelcomePaused = usage.welcomeEmailsPaused && (await hasWelcomeEmailsOn(accountId));
@@ -105,6 +107,12 @@ export default async function OverviewPage({ searchParams }) {
 								<TableRecentCampaigns account={account} newsletter={selected} />
 							</Suspense>
 						</Section>
+
+						{hasRole(view.role, "admin") && (
+							<Section title="Automations" href="/automations" stagger={4}>
+								<AutomationDrafts key={automationScope} scope={automationScope} isOverview />
+							</Section>
+						)}
 					</>
 				) : (
 					<StateEmpty icon={Newspaper} title="No newsletters yet">
@@ -118,7 +126,7 @@ export default async function OverviewPage({ searchParams }) {
 				)}
 
 				{hasPlan && usage.emailsLimit !== null && (
-					<Section title={`${getAccountPlan(account)?.name ?? "Your"} plan`} href="/billing" stagger={4}>
+					<Section title={`${getAccountPlan(account)?.name ?? "Your"} plan`} href="/billing" stagger={5}>
 						<CardUsage usage={usage} isShared={view.ownCount > 1} />
 					</Section>
 				)}
