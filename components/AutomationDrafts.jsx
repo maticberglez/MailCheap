@@ -54,10 +54,10 @@ function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
 	);
 }
 
+const STEP_MOTION = "transition-[opacity,translate] duration-200 ease-out starting:translate-y-1 starting:opacity-0 motion-reduce:transition-none";
 const EMAIL_STEPS = [{ id: "edit", label: "Edit" }, { id: "review", label: "Review" }];
 
 const EMAIL_FIELDS = [
-	["title", "Title", "Untitled email", 200],
 	["value", "Subject", "Welcome to our newsletter", 200],
 	["previewText", "Preview text", "A quick hello and what to expect", 300],
 	["fromName", "Sender name", "Your newsletter name", 100],
@@ -80,6 +80,8 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 	const [node, setNode] = useState(() => draft?.flow.nodes.find((item) => item.id === nodeId && item.type === "email"));
 	const [initialBody] = useState(node?.html ?? "");
 	const [step, setStep] = useState("edit");
+	const [reviewActions, setReviewActions] = useState(null);
+	const [mode, setMode] = useState(null);
 	const [message, setMessage] = useState("");
 
 	function saveEmail(fields = {}) {
@@ -99,20 +101,39 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 		}
 	}
 
+	function saveAndReturn() {
+		if (saveEmail()) router.push(returnHref);
+	}
+
 	return (
 		<div data-automation-editor="" className="min-w-0">
-			<header className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
-				<Button asChild variant="ghost" size="icon" aria-label="Back to flow"><Link href={returnHref}><ArrowLeft /></Link></Button>
-				<h1 className="min-w-0 truncate text-xl font-semibold">{node?.title || node?.value || "Automation email"}</h1>
-				<BadgeStatus status="draft" />
-				<span role="status" className="ml-auto text-sm text-muted-foreground">{message}</span>
+			<header className="grid min-h-[3.25rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b bg-background px-3 py-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] lg:gap-x-6">
+				<div className="flex min-w-0 items-center gap-2">
+					<Button asChild variant="ghost" size="icon" aria-label="Back to flow"><Link href={returnHref}><ArrowLeft /></Link></Button>
+					{node ? (
+						<input aria-label="Email title" value={node.title ?? ""} placeholder="Untitled email" maxLength={200}
+							className="min-w-0 max-w-[min(24rem,50vw)] truncate [field-sizing:content] rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-semibold outline-none hover:border-border focus:border-ring focus:ring-2 focus:ring-ring/25"
+							onChange={(event) => saveEmail({ title: event.target.value })}
+							onKeyDown={(event) => {
+								if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+								event.preventDefault();
+								if (saveEmail()) event.currentTarget.blur();
+							}} />
+					) : <h1 className="min-w-0 truncate text-xl font-semibold">Automation email</h1>}
+					<BadgeStatus status="draft" />
+				</div>
+				{node && <NavSteps steps={EMAIL_STEPS} step={step} onStep={setStep} className="col-span-2 row-start-2 justify-self-center lg:col-span-1 lg:col-start-2 lg:row-start-1" />}
+				<div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 lg:col-start-3">
+					<span role="status" className="min-w-0 truncate text-sm text-muted-foreground">{message}</span>
+					{node && step === "edit" && <Button type="button" className="shrink-0 lg:min-w-32" onClick={saveAndReturn}>Save</Button>}
+					<div ref={setReviewActions} hidden={step !== "review"} />
+				</div>
 			</header>
 			{node ? <div className="mx-auto max-w-3xl space-y-4 p-4 md:py-8">
 				<p className="truncate text-sm text-muted-foreground">{draft.name}</p>
-				<NavSteps steps={EMAIL_STEPS} step={step} onStep={setStep} className="flex justify-center" />
-				<section aria-label="Edit" hidden={step !== "edit"}>
-					<PanelEmailEditor className="shadow-border">
-						<div className="divide-y divide-border/60 border-b border-border/60">
+				<section aria-label="Edit" hidden={step !== "edit"} className={STEP_MOTION}>
+					<PanelEmailEditor className="shadow-border" mode={mode} onModeChange={setMode}>
+						<div className="divide-y divide-border/60 border-b border-border/60 motion-safe:transition-colors motion-safe:duration-200 motion-safe:[&>*]:transition-colors motion-safe:[&>*]:duration-200">
 							{EMAIL_FIELDS.map(([key, label, placeholder, maxLength]) => (
 								<RowCampaign key={key} label={label}>
 									<input className={cn("h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:font-normal placeholder:text-muted-foreground", key === "value" && "font-medium")}
@@ -132,14 +153,9 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 						<EditorRich content={initialBody} onChange={(html) => saveEmail({ html })} minHeight="min-h-[60vh]" />
 					</PanelEmailEditor>
 				</section>
-				{step === "review" && (
-					<section aria-label="Review" className="space-y-4">
-						<PreviewAutomationEmail node={node} addresses={addresses} />
-						<div className="flex justify-end">
-							<Button type="button" onClick={() => { if (saveEmail()) router.push(returnHref); }}>Save</Button>
-						</div>
-					</section>
-				)}
+				<section aria-label="Review" hidden={step !== "review"} className={STEP_MOTION}>
+					<PreviewAutomationEmail node={node} addresses={addresses} mode={mode} onModeChange={setMode} onSave={saveAndReturn} actionsTarget={reviewActions} />
+				</section>
 			</div> : <p className="p-4 text-sm text-muted-foreground">This email node could not be opened in this browser.</p>}
 		</div>
 	);

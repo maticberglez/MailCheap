@@ -103,3 +103,22 @@ test("tight backward connections turn outside both cards", () => {
 	assert.match(path, /^M 384 162 V 284 Q 384 304 /);
 	assert.match(path, /V 30 Q 68 10 .* Q 216 10 216 30 V 152$/);
 });
+
+test("trigger filters, tag actions and A/B paths work together without changing sample tags", () => {
+	const flow = {
+		trigger: "tag", triggerTag: "joined", triggerFilters: ["vip", "active"], exitTag: "finished",
+		nodes: [
+			{ id: "ab", type: "ab", next: "push", other: "tag" },
+			{ id: "push", type: "push", value: "Welcome" },
+			{ id: "tag", type: "tag", value: "finished", next: "push" },
+		],
+	};
+	const tags = ["joined", "vip", "active"];
+	assert.equal(simulateWelcomeFlow(flow, tags, { event: "subscribe" }).reason, "Trigger did not match");
+	assert.equal(simulateWelcomeFlow(flow, ["joined", "vip"]).reason, "Entry filter did not match");
+	assert.deepEqual(simulateWelcomeFlow(flow, tags).path.map(({ id }) => id), ["ab", "push"]);
+	const result = simulateWelcomeFlow(flow, tags, { variant: "b" });
+	assert.deepEqual(result.path.map(({ id }) => id), ["ab", "tag"]);
+	assert.equal(result.reason, "Exit filter matched");
+	assert.deepEqual(tags, ["joined", "vip", "active"]);
+});

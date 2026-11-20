@@ -1,31 +1,44 @@
 "use client";
 
+import PanelAutomationTrigger from "@/components/PanelAutomationTrigger";
 import PreviewAutomationEmail from "@/components/PreviewAutomationEmail";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Clock, Copy, Focus, GitBranch, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
+import { Bell, Clock, Copy, FlaskConical, Tag, Zap, Focus, GitBranch, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "@/lib/welcome-flow";
+import { FLOW_TRIGGERS, MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "@/lib/welcome-flow";
 
 const TYPES = {
 	email: { label: "Email", icon: Mail },
 	sms: { label: "SMS", icon: MessageSquare },
 	delay: { label: "Delay", icon: Clock, field: "Hours" },
-	filter: { label: "Fork", icon: GitBranch, field: "Contact tag" },
+	push: { label: "Push notification", icon: Bell },
+	tag: { label: "Tag contact", icon: Tag, field: "Contact tag" },
+	ab: { label: "A/B testing", icon: FlaskConical },
+	filter: { label: "Split", icon: GitBranch, field: "Contact tag" },
 	repeat: { label: "Repeat twice", icon: Repeat },
 	exit: { label: "Exit", icon: LogOut },
 };
+const TOOL_GROUPS = [["Messages", ["email", "sms", "push"]], ["Flow actions", ["delay", "tag", "filter", "ab", "exit"]]];
+const FIRST_NODE_TOP = 208;
+const TRIGGER_DRAG = Symbol("trigger");
+const TRIGGER_HEIGHT = 144;
+const hasBranches = (type) => ["filter", "ab", "repeat"].includes(type);
 const NODE_WIDTH = 240;
-const NODE_HEIGHT = 112;
+const NODE_HEIGHT = 148;
 const PAN_MARGIN = 220;
-const TOOL_BUTTON = "h-11 min-w-0 justify-start rounded-xl border-border bg-card px-2.5 text-sm font-medium shadow-sm hover:bg-muted sm:w-36 sm:px-3 [&_svg]:size-5";
+const TOOL_BUTTON = "h-11 min-w-0 justify-start rounded-xl border-border bg-card px-2.5 text-sm font-medium shadow-sm hover:bg-muted sm:w-40 sm:px-3 [&_svg]:size-5";
 function nodePosition(node, index) {
 	return { x: node.x ?? 56, y: node.y ?? 32 + index * 176 };
 }
 
+function triggerAbove({ x, y }) {
+	return { x, y: y - TRIGGER_HEIGHT - 16 };
+}
+
 function outputX(node, key) {
-	if (node.type !== "filter" && node.type !== "repeat") return NODE_WIDTH / 2;
+	if (!hasBranches(node.type)) return NODE_WIDTH / 2;
 	return key === "next" ? NODE_WIDTH / 3 : NODE_WIDTH * 2 / 3;
 }
 
@@ -46,11 +59,15 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		try { return stored === null ? initialFlow : JSON.parse(stored); } catch { return initialFlow; }
 	}, [stored, initialFlow]);
 	const [tags, setTags] = useState("");
+	const [variant, setVariant] = useState("a");
+	const [sampleEvent, setSampleEvent] = useState(null);
+	const [isTriggerOpen, setIsTriggerOpen] = useState(false);
 	const [isSimulationOpen, setIsSimulationOpen] = useState(false);
 	const [result, setResult] = useState(null);
 	const [error, setError] = useState("");
 	const [selectedId, setSelectedId] = useState(selectedNodeId);
 	const [deleteId, setDeleteId] = useState(null);
+	const [deleteWire, setDeleteWire] = useState(null);
 	const [connecting, setConnecting] = useState(null);
 	const wireGesture = useRef(null);
 	const suppressWireClick = useRef(false);
@@ -63,11 +80,11 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const viewport = useRef(null);
 	const panDrag = useRef(null);
 	const [{ pan, zoom }, setCamera] = useState({ pan: { x: 0, y: 0 }, zoom: 1 });
-	const [start] = useState(() => nodePosition(initialFlow.nodes[0] ?? {}, 0));
+	const [start] = useState(() => initialFlow.triggerPosition ?? triggerAbove(nodePosition(initialFlow.nodes[0] ?? {}, 0)));
 	const setViewport = useCallback((element) => {
 		viewport.current = element;
 		if (!element) return;
-		setCamera({ pan: { x: (element.clientWidth - NODE_WIDTH) / 2 - start.x, y: 32 - start.y }, zoom: 1 });
+		setCamera({ pan: { x: (element.clientWidth - NODE_WIDTH) / 2 - start.x, y: FIRST_NODE_TOP - TRIGGER_HEIGHT - 16 - start.y }, zoom: 1 });
 	}, [start]);
 	const [isPanning, setIsPanning] = useState(false);
 	const [isWheelZooming, setIsWheelZooming] = useState(false);
@@ -76,6 +93,16 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const deletingNode = flow.nodes.find(({ id }) => id === deleteId);
 	const positions = new Map(flow.nodes.map((node, index) => [node.id, position?.id === node.id ? position : nodePosition(node, index)]));
 	const savedPositions = flow.nodes.map(nodePosition);
+	const firstNode = flow.nodes[0];
+	const firstPosition = firstNode ? positions.get(firstNode.id) : { x: 56, y: 32 };
+	const triggerPosition = position?.id === TRIGGER_DRAG ? position : flow.triggerPosition ?? triggerAbove(firstPosition);
+	const hasNodeSettings = Boolean(selectedNode && (
+		TYPES[selectedNode.type].field || ["email", "sms", "push"].includes(selectedNode.type)
+	));
+	const hasSettings = hasNodeSettings || isTriggerOpen;
+	const triggerText = flow.trigger === "tag" && flow.triggerTag
+		? `receive the “${flow.triggerTag}” tag`
+		: FLOW_TRIGGERS[flow.trigger] ?? FLOW_TRIGGERS.subscribe;
 
 	function setPan(next) {
 		setCamera((camera) => ({ ...camera, pan: typeof next === "function" ? next(camera.pan) : next }));
@@ -83,7 +110,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 
 	function panWithinFlow(x, y, elastic = false, scale = zoom) {
 		const { clientWidth, clientHeight } = viewport.current;
-		const points = savedPositions.length ? savedPositions : [{ x: 56, y: 32 }];
+		const points = [...savedPositions, triggerPosition];
 		const left = Math.min(...points.map((point) => point.x));
 		const top = Math.min(...points.map((point) => point.y));
 		const right = Math.max(...points.map((point) => point.x + NODE_WIDTH));
@@ -181,7 +208,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		const end = canvasPoint(view.right - 12, view.bottom - 12);
 		const point = canvasPoint(event.clientX, event.clientY);
 		const x = Math.max(start.x, Math.min(end.x - NODE_WIDTH, point.x - current.offsetX));
-		const y = Math.max(start.y, Math.min(end.y - NODE_HEIGHT, point.y - current.offsetY));
+		const y = Math.max(start.y, Math.min(end.y - (current.id === TRIGGER_DRAG ? TRIGGER_HEIGHT : NODE_HEIGHT), point.y - current.offsetY));
 		current.position = { id: current.id, x, y };
 		setPosition(current.position);
 	}
@@ -192,7 +219,8 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		drag.current = null;
 		if (save && current.position) {
 			const { id, x, y } = current.position;
-			update(id, { x, y });
+			if (id === TRIGGER_DRAG) change({ ...flow, triggerPosition: { x, y } });
+			else update(id, { x, y });
 		}
 		setPosition(null);
 	}
@@ -272,24 +300,29 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		gesture.moved = true;
 		suppressWireClick.current = true;
 		const { x, y } = canvasPoint(event.clientX, event.clientY);
-		const reverse = gesture.key === "input";
-		const points = flow.nodes.filter((node) => node.id !== gesture.id).flatMap((node) => {
+		const preview = previewWire(gesture, { x, y });
+		if (!preview) return null;
+		setWire(preview);
+		return preview;
+	}
+
+	function previewWire(endpoint, { x, y }) {
+		const node = flow.nodes.find(({ id }) => id === endpoint.id);
+		const origin = positions.get(endpoint.id);
+		if (!node || !origin) return null;
+		const reverse = endpoint.key === "input";
+		const points = flow.nodes.filter((node) => node.id !== endpoint.id).flatMap((node) => {
 			const point = positions.get(node.id);
 			if (!reverse) return [{ id: node.id, key: "input", x: point.x + NODE_WIDTH / 2, y: point.y }];
 			if (node.type === "exit") return [];
-			const outputs = node.type === "filter" || node.type === "repeat" ? ["next", "other"] : ["next"];
+			const outputs = hasBranches(node.type) ? ["next", "other"] : ["next"];
 			return outputs.map((key) => ({ id: node.id, key, x: point.x + outputX(node, key), y: point.y + NODE_HEIGHT }));
 		});
 		const target = nearestFlowInput(points, x, y, 28 / zoom);
-		const node = flow.nodes.find(({ id }) => id === gesture.id);
-		const point = positions.get(gesture.id);
-		const fixed = { x: point.x + (reverse ? NODE_WIDTH / 2 : outputX(node, gesture.key)), y: point.y + (reverse ? 0 : NODE_HEIGHT) };
+		const fixed = { x: origin.x + (reverse ? NODE_WIDTH / 2 : outputX(node, endpoint.key)), y: origin.y + (reverse ? 0 : NODE_HEIGHT) };
 		const free = target ?? { x, y };
-		const preview = { id: gesture.id, key: gesture.key, target, from: reverse ? free : fixed, to: reverse ? fixed : free,
-			lane: target ? reverseWireLane(point.x, positions.get(target.id).x, NODE_WIDTH) : undefined };
-
-		setWire(preview);
-		return preview;
+		return { id: endpoint.id, key: endpoint.key, target, from: reverse ? free : fixed, to: reverse ? fixed : free,
+			lane: target ? reverseWireLane(origin.x, positions.get(target.id).x, NODE_WIDTH) : undefined };
 	}
 
 	function finishWire(event) {
@@ -303,7 +336,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	function port(node, key, label) {
 		const isInput = key === "input";
 		const active = (connecting?.id === node.id && connecting.key === key) || (wire?.id === node.id && wire.key === key);
-		const snapped = wire?.target?.id === node.id && wire.target.key === key;
+		const snapped = shownWire?.target?.id === node.id && shownWire.target.key === key;
 		return <button type="button" title={label} aria-label={label} aria-pressed={active}
 			onPointerDown={(event) => startWire(event, node, key)}
 			onPointerMove={(event) => trackWire(event)}
@@ -313,11 +346,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 				if (event.detail !== 0 && suppressWireClick.current) return;
 				setSelectedId(null);
 				const endpoint = { id: node.id, key };
-				if (!connectPorts(connecting, endpoint)) setConnecting(active ? null : endpoint);
+				if (!connectPorts(connecting, endpoint)) setConnecting(active ? null : { ...endpoint, point: event.detail ? canvasPoint(event.clientX, event.clientY) : null });
 			}}
 			className={`absolute size-4 cursor-crosshair touch-none -translate-x-1/2 rounded-full border-2 border-background hover:ring-2 hover:ring-ring ${isInput ? "-top-2" : "-bottom-2"} ${active || snapped ? "bg-primary ring-2 ring-ring" : "bg-muted-foreground"}`}
 			style={{ left: isInput ? NODE_WIDTH / 2 : outputX(node, key) }} />;
 	}
+
+	const shownWire = wire ?? (connecting?.point ? previewWire(connecting, connecting.point) : null);
 
 	return (
 		<div className="relative" onKeyDown={(event) => {
@@ -326,13 +361,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 				setConnecting(null);
 				return;
 			}
-			if (event.key !== "Backspace" || event.defaultPrevented || event.isComposing || !selectedNode || deleteId ||
+			if (event.key !== "Backspace" || event.defaultPrevented || event.isComposing || !selectedNode || deleteId || deleteWire ||
 				event.target.closest("input, textarea, select, [contenteditable]")) return;
 			event.preventDefault();
 			setDeleteId(selectedNode.id);
 		}}>
 			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
-				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
+				style={{ "--node-settings-width": hasSettings ? "42%" : "0%" }}>
 				<div ref={setViewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning ? "transition-none" : `transition-[background-position,background-size] ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
@@ -341,10 +376,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					}}
 					onPointerMove={(event) => {
 						if (placement) setPlacement({ ...placement, ...placementPoint(event.clientX, event.clientY) });
-						else movePan(event);
+						else if (connecting && !wireGesture.current && !panDrag.current) {
+							const point = canvasPoint(event.clientX, event.clientY);
+							setConnecting((current) => current && { ...current, point });
+						} else movePan(event);
 					}} onPointerUp={finishPan} onPointerCancel={finishPan} onLostPointerCapture={finishPan}>
 					<div ref={canvas} className={`pointer-events-none absolute inset-0 origin-top-left ${isPanning ? "transition-none" : `transition-transform ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
-						<svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+						<svg className="pointer-events-none absolute inset-0 size-full overflow-visible">
 							{flow.nodes.flatMap((node) => ["next", "other"].map((key) => {
 								const from = positions.get(node.id);
 								const to = positions.get(node[key]);
@@ -353,40 +391,88 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 								const y = from.y + NODE_HEIGHT;
 								const endX = to.x + NODE_WIDTH / 2;
 								const endY = to.y;
-								return <path key={`${node.id}-${key}`} d={flowConnectionPath(x, y, endX, endY, reverseWireLane(from.x, to.x, NODE_WIDTH), NODE_HEIGHT)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={key === "other" ? "5 4" : undefined} className="text-muted-foreground" />;
+								const d = flowConnectionPath(x, y, endX, endY, reverseWireLane(from.x, to.x, NODE_WIDTH), NODE_HEIGHT);
+								return (
+									<g key={`${node.id}-${key}`} role="button" tabIndex={placement ? -1 : 0}
+										aria-label={`Select ${node.type === "ab" ? (key === "other" ? "B" : "A") + " branch" : key === "other" ? "secondary connection" : "connection"} from step ${flow.nodes.indexOf(node) + 1} to step ${flow.nodes.findIndex(({ id }) => id === node[key]) + 1}`}
+										onClick={(event) => { event.currentTarget.focus(); setSelectedId(null); setIsTriggerOpen(false); }}
+										onKeyDown={(event) => {
+											if (!["Backspace", "Enter", " "].includes(event.key) || deleteWire || placement) return;
+											event.preventDefault();
+											setDeleteWire({ id: node.id, key, destination: node[key] });
+										}}
+										className="group cursor-pointer outline-none">
+										<path d={d} fill="none" stroke="transparent" strokeWidth="16" vectorEffect="non-scaling-stroke"
+											className={placement ? "" : "pointer-events-auto [pointer-events:stroke]"} />
+										<path d={d} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+											strokeDasharray={key === "other" && node.type !== "ab" ? "5 4" : undefined}
+											className="text-muted-foreground group-hover:text-primary group-focus:stroke-[3] group-focus:text-primary" />
+									</g>
+								);
 							}))}
-							{wire && <path d={flowConnectionPath(wire.from.x, wire.from.y, wire.to.x, wire.to.y, wire.lane, wire.target ? NODE_HEIGHT : 0)}
+							{shownWire && <path aria-hidden="true" d={flowConnectionPath(shownWire.from.x, shownWire.from.y, shownWire.to.x, shownWire.to.y, shownWire.lane, shownWire.target ? NODE_HEIGHT : 0)}
 								fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-primary" />}
+							{firstNode && <path aria-hidden="true"
+								d={flowConnectionPath(triggerPosition.x + NODE_WIDTH / 2, triggerPosition.y + TRIGGER_HEIGHT, firstPosition.x + NODE_WIDTH / 2, firstPosition.y)}
+								fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground" />}
 						</svg>
+						<button type="button" onClick={(event) => {
+							if (event.detail !== 0 && moved.current) return;
+							setSelectedId(null);
+							setIsTriggerOpen(true);
+						}}
+							onPointerDown={(event) => startMove(event, TRIGGER_DRAG, triggerPosition.x, triggerPosition.y)}
+							onPointerMove={move}
+							onPointerUp={(event) => { move(event); finishMove(event, true); }}
+							onPointerCancel={(event) => finishMove(event, false)}
+							onLostPointerCapture={(event) => finishMove(event, true)}
+							disabled={Boolean(placement)} aria-pressed={isTriggerOpen}
+							className="pointer-events-auto absolute grid touch-none cursor-grab content-start active:cursor-grabbing gap-1 overflow-hidden rounded-xl border bg-card p-4 text-left text-xs shadow-sm aria-pressed:ring-2 aria-pressed:ring-ring"
+							style={{ left: triggerPosition.x, top: triggerPosition.y, width: NODE_WIDTH, height: TRIGGER_HEIGHT }}>
+							<span className="flex items-center gap-1.5 text-sm font-medium"><Zap className="size-4" />Trigger</span>
+							<span className="line-clamp-2 wrap-anywhere">Customers enter the workflow when they <strong>{triggerText}</strong>.</span>
+							<span className="line-clamp-2 border-t pt-1 wrap-anywhere">{flow.exitTag ? <>Customers exit the workflow when they <strong>receive the “{flow.exitTag}” tag</strong>.</> : "No exit condition set."}</span>
+						</button>
+
 						{flow.nodes.map((node, index) => {
 							const { label, icon: Icon } = TYPES[node.type];
 							const { x, y } = positions.get(node.id);
 							return (
-								<article key={node.id} className={`group ${placement ? "" : "pointer-events-auto"} absolute space-y-2 rounded-xl border bg-card p-3 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
+								<article key={node.id} className={`group ${placement ? "" : "pointer-events-auto"} absolute space-y-2 rounded-xl border bg-card p-4 shadow-sm ${selectedId === node.id ? "ring-2 ring-ring" : ""}`} style={{ left: x, top: y, width: NODE_WIDTH, height: NODE_HEIGHT }}>
 									<div className="flex items-center gap-2">
 										<button type="button" aria-label={`Select or move step ${index + 1}`} className="absolute inset-0 touch-none cursor-grab rounded-xl focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
-											onClick={(event) => { if (event.detail === 0 || !moved.current) setSelectedId(node.id); }}
+											onClick={(event) => { if (event.detail === 0 || !moved.current) { event.currentTarget.focus({ preventScroll: true }); setIsTriggerOpen(false); setSelectedId(node.id); } }}
+											onKeyDown={(event) => {
+												if (event.key !== "Enter" || selectedId !== node.id || event.repeat) return;
+												event.preventDefault();
+												setDeleteId(node.id);
+											}}
 											onPointerDown={(event) => startMove(event, node.id, x, y)}
 											onPointerMove={move}
 											onPointerUp={(event) => { move(event); finishMove(event, true); }}
 											onPointerCancel={(event) => finishMove(event, false)}
 											onLostPointerCapture={(event) => finishMove(event, true)}
 										/>
-										<span className="pointer-events-none flex flex-1 items-center gap-1.5 text-sm font-medium"><Icon className="size-4" />{index + 1}. {label}</span>
+										<span className="pointer-events-none flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium">
+											<Icon className="size-4 shrink-0" /><span className="truncate">{node.type === "email" ? node.title || node.value || "Untitled email" : `${index + 1}. ${label}`}</span>
+										</span>
 										<Button variant="ghost" size="icon-sm" aria-label={`Duplicate step ${index + 1}`} title="Duplicate node"
 											disabled={flow.nodes.length >= MAX_FLOW_STEPS}
 											className="relative opacity-100 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
 											onClick={() => add(node.type, node)}><Copy aria-hidden="true" /></Button>
 
 									</div>
-									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.type === "email" && node.title ? node.title : node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : node.type === "sms" ? "No message yet" : ""}</p>
-									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
-										{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
+									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.type === "email" ? node.previewText || "No preview text" : node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "sms" || node.type === "push" ? "No message yet" : ""}</p>
+									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-4 gap-2 border-t pt-2 text-xs text-muted-foreground">
+										{["Sent", "Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data" className="mt-1">—</dd></div>)}
 									</dl>}
-									{index === 0 && <span className="pointer-events-none absolute -top-6 left-0 rounded bg-background px-1.5 text-xs font-medium text-muted-foreground">Subscriber joins</span>}
+									{node.type === "exit" && <dl aria-label="Exit analytics" className="pointer-events-none border-t pt-2 text-xs text-muted-foreground">
+										<dt>Completed</dt>
+										<dd aria-label="No data" className="mt-1">—</dd>
+									</dl>}
 									{port(node, "input", `Input for step ${index + 1}`)}
-									{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : "to next step"}`)}
-									{(node.type === "filter" || node.type === "repeat") && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : "to repeat from"}`)}
+									{node.type !== "exit" && port(node, "next", `Connect step ${index + 1} ${node.type === "filter" ? "if tag matches" : node.type === "ab" ? "variant A" : "to next step"}`)}
+									{hasBranches(node.type) && port(node, "other", `Connect step ${index + 1} ${node.type === "filter" ? "otherwise" : node.type === "ab" ? "variant B" : "to repeat from"}`)}
 								</article>
 							);
 						})}
@@ -396,12 +482,19 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 						{!flow.nodes.length && !placement && <p className="p-8 text-sm text-muted-foreground">Add a node to start your flow.</p>}
 					</div>
 					<div role="toolbar" aria-label="Automation tools" className="absolute top-3 bottom-16 left-3 z-10 flex w-max flex-col items-stretch gap-1.5 overflow-y-auto p-0.5 pointer-events-none [&_button]:pointer-events-auto">
-						{Object.entries(TYPES).filter(([type]) => type !== "repeat").map(([type, { label, icon: Icon }]) => (
-							<Button key={type} variant="outline" className={TOOL_BUTTON} title={label} aria-label={`Add ${label.toLowerCase()} node`} disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
-								<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
-							</Button>
+						{TOOL_GROUPS.map(([group, types]) => (
+							<div key={group} role="group" aria-label={group} className="grid gap-1.5">
+								<span className="hidden text-xs font-medium text-muted-foreground sm:block">{group}</span>
+								{types.map((type) => {
+									const { label, icon: Icon } = TYPES[type];
+									return <Button key={type} variant="outline" className={TOOL_BUTTON} title={label} aria-label={`Add ${label.toLowerCase()} node`}
+										disabled={flow.nodes.length >= MAX_FLOW_STEPS} onClick={() => add(type)}>
+										<Icon aria-hidden="true" /><span className="hidden sm:inline">{label}</span>
+									</Button>;
+								})}
+							</div>
 						))}
-						<Button variant="outline" className={TOOL_BUTTON} title="Back to start" aria-label="Back to start" onClick={() => revealNode(savedPositions[0] ?? { x: 56, y: 32 })}>
+						<Button variant="outline" className={TOOL_BUTTON} title="Back to start" aria-label="Back to start" onClick={() => revealNode(triggerPosition)}>
 							<Focus aria-hidden="true" /><span className="hidden sm:inline">Back to start</span>
 						</Button>
 						<Button variant="outline" className={TOOL_BUTTON} title="Simulate flow" aria-label="Simulate flow" onClick={() => setIsSimulationOpen(true)}>
@@ -420,30 +513,26 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					</div>}
 					{connecting && <div role="status" className="absolute right-2 bottom-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1 text-sm shadow-sm">Select {connecting.key === "input" ? "an output dot" : "an input dot"}. <Button variant="ghost" size="sm" onClick={() => setConnecting(null)}>Cancel</Button></div>}
 				</div>
-				<div className={`min-h-0 min-w-0 overflow-hidden ${selectedNode ? "block lg:flex lg:flex-col lg:p-3" : "hidden lg:block"}`} inert={!selectedNode}>
-					<aside aria-label="Node settings" aria-hidden={!selectedNode}
-						className={`m-2 max-h-[40dvh] min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none sm:m-3 lg:m-0 lg:max-h-none ${selectedNode ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
-						{selectedNode && <section className="space-y-3 p-4">
+				<div className={`min-h-0 min-w-0 overflow-hidden ${hasSettings ? "block lg:flex lg:flex-col lg:p-3" : "hidden lg:block"}`} inert={!hasSettings}>
+					<aside key={isTriggerOpen ? "trigger" : selectedNode?.id} aria-label="Node settings" aria-hidden={!hasSettings}
+						className={`m-2 max-h-[40dvh] min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-2xl bg-card shadow-float ring-1 ring-foreground/10 transition-[translate,opacity] duration-300 ease-out starting:translate-x-4 starting:opacity-0 motion-reduce:transition-none sm:m-3 lg:m-0 lg:max-h-none ${hasSettings ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"}`}>
+						{isTriggerOpen && <PanelAutomationTrigger flow={flow} onChange={change} onClose={() => setIsTriggerOpen(false)} />}
+						{hasNodeSettings && <section className="space-y-3 p-4">
 							<div className="flex items-center gap-1">
 								<h2 className="mr-auto font-medium">{TYPES[selectedNode.type].label} settings</h2>
 								<Button size="icon" variant="ghost" aria-label="Delete selected node" onClick={() => setDeleteId(selectedNode.id)}><Trash2 /></Button>
 								<Button size="icon" variant="ghost" aria-label="Close node settings" onClick={() => setSelectedId(null)}><X /></Button>
 							</div>
 							{TYPES[selectedNode.type].field && <label className="grid gap-1 text-sm">{TYPES[selectedNode.type].field}<Input type={selectedNode.type === "delay" ? "number" : "text"} min={0} value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} /></label>}
-							{selectedNode.type === "sms" && <label className="grid gap-1 text-sm">
+							{(selectedNode.type === "sms" || selectedNode.type === "push") && <label className="grid gap-1 text-sm">
 								Message
 								<textarea className="min-h-28 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm"
 									value={selectedNode.value} onChange={(event) => update(selectedNode.id, { value: event.target.value })} />
 							</label>}
-							{(selectedNode.next || selectedNode.other) && <div className="flex flex-wrap gap-2">
-								{selectedNode.next && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { next: "" })}>Disconnect {selectedNode.type === "filter" ? "match" : "next"}</Button>}
-								{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : "repeat"}</Button>}
+							{selectedNode.other && <div className="flex flex-wrap gap-2">
+								{selectedNode.other && <Button size="sm" variant="outline" onClick={() => update(selectedNode.id, { other: "" })}>Disconnect {selectedNode.type === "filter" ? "otherwise" : selectedNode.type === "ab" ? "B" : "repeat"}</Button>}
 							</div>}
-							{selectedNode.id === flow.nodes[0]?.id && <fieldset className="grid gap-3 border-b pb-3">
-								<legend className="mb-2 text-sm font-medium">Trigger · Subscriber joins</legend>
-								<label className="grid gap-1 text-sm">Required entry tag<Input placeholder="Any subscriber" value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
-								<label className="grid gap-1 text-sm">Exit if tagged<Input placeholder="For example, customer" value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
-							</fieldset>}
+
 							{selectedNode.type === "email" && (
 								<PreviewAutomationEmail key={selectedNode.id} node={selectedNode} addresses={addresses} editHref={`${editPath}/${selectedNode.id}`} />
 							)}
@@ -457,8 +546,19 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					<DialogTitle>Simulate flow</DialogTitle>
 					<DialogDescription>Try the flow with sample contact tags. Simulation sends no messages.</DialogDescription>
 					<section className="space-y-3 rounded-xl border bg-card p-4">
+						<label className="grid gap-1 text-sm">Sample trigger
+							<select value={sampleEvent ?? flow.trigger ?? "subscribe"} onChange={(event) => setSampleEvent(event.target.value)} className="h-9 rounded-md border bg-background px-3">
+								<option value="subscribe">Subscriber joins</option>
+								<option value="tag">Contact tag added</option>
+							</select>
+						</label>
 						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
-						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim())))}>Simulate flow</Button>
+						{flow.nodes.some(({ type }) => type === "ab") && <label className="grid gap-1 text-sm">A/B variant
+							<select value={variant} onChange={(event) => setVariant(event.target.value)} className="h-9 rounded-md border bg-background px-3">
+								<option value="a">A</option><option value="b">B</option>
+							</select>
+						</label>}
+						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim()), { variant, event: sampleEvent ?? undefined }))}>Simulate flow</Button>
 						{result && <div aria-live="polite" className="space-y-2 text-sm">
 							<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
 							<p>{result.reason}</p>
@@ -470,9 +570,28 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 				<DialogContent>
 					<DialogTitle>Delete {deletingNode ? TYPES[deletingNode.type].label.toLowerCase() : "node"}?</DialogTitle>
 					<DialogDescription>This removes the node and its connections from the draft.</DialogDescription>
-					<DialogFooter>
+					<DialogFooter onKeyDown={(event) => {
+						if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+						event.preventDefault();
+						const buttons = [...event.currentTarget.querySelectorAll("button")];
+						buttons.find((button) => button !== event.target)?.focus();
+					}}>
 						<Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
 						<Button variant="destructive" onClick={confirmDelete}>Delete node</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			<Dialog open={Boolean(deleteWire)} onOpenChange={(open) => { if (!open) setDeleteWire(null); }}>
+				<DialogContent>
+					<DialogTitle>Delete this connection?</DialogTitle>
+					<DialogDescription>The two nodes will stay in the flow.</DialogDescription>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setDeleteWire(null)}>Cancel</Button>
+						<Button variant="destructive" onClick={() => {
+							const { id, key, destination } = deleteWire;
+							if (flow.nodes.find((node) => node.id === id)?.[key] === destination) update(id, { [key]: "" });
+							setDeleteWire(null);
+						}}>Delete connection</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
