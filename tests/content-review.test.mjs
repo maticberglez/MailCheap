@@ -804,9 +804,9 @@ describe("the content check of a newsletter's own welcome, confirmation and last
 			)
 		);
 		assert.deepEqual((await api(user, "GET", `/newsletters/${user.newsletterId}`)).welcome.review, { status: "rejected", note: "Phishing isn't allowed" });
-		const WelcomePage = (await import("../app/(app)/newsletters/welcome/page.js")).default;
-		const page = renderToStaticMarkup(await as(user, () => WelcomePage()));
-		assert.ok(page.includes("This email can&#x27;t be sent: Phishing isn&#x27;t allowed. Until you change it, new subscribers don&#x27;t get it."), "its page says so");
+		const AutomationsPage = (await import("../app/(app)/automations/page.js")).default;
+		const page = renderToStaticMarkup(await as(user, () => AutomationsPage()));
+		assert.ok(page.includes("The welcome automation can’t send. Phishing isn&#x27;t allowed."), "its page says so");
 		assert.ok(!page.includes(REASON), "never why");
 		assert.deepEqual(await as(admin, () => m.admin.approveSignupEmail(user.newsletterId, "welcome")), { error: "Nothing waits for a review here" });
 		assert.equal(await signUp(user, "friend@signup-rejected.example.org"), null, "still none");

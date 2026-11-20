@@ -1,4 +1,4 @@
-import { AtSign, Bell, BrushCleaning, CodeXml, Globe, Hand, MailCheck, Palette, ShoppingBag, UsersRound } from "lucide-react";
+import { AtSign, Bell, BrushCleaning, CodeXml, Globe, MailCheck, Palette, ShoppingBag, UsersRound } from "lucide-react";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardSettingsSection from "@/components/CardSettingsSection";
 import HeaderPage from "@/components/HeaderPage";
@@ -74,4 +74,4 @@ export default async function SettingsPage() {
 	);
 }
 
-const ICONS = { sender: AtSign, signups: MailCheck, welcome: Hand, cleanup: BrushCleaning, website: Globe };
+const ICONS = { sender: AtSign, signups: MailCheck, cleanup: BrushCleaning, website: Globe };

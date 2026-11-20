@@ -17,7 +17,7 @@ export default async function FormPage() {
 	const { account, selected } = await requireRole("admin");
 	if (!selected) redirect(ADD_NEWSLETTER_PATH);
 	const newsletter = await Newsletter.findOne(scoped(account, { _id: selected._id }))
-		.select({ name: 1, description: 1, theme: 1, requireConfirmation: 1, "welcome.enabled": 1, signupForm: 1 })
+		.select({ name: 1, description: 1, theme: 1, requireConfirmation: 1, "welcomeAutomation.id": 1, signupForm: 1 })
 		.lean();
 
 	return (

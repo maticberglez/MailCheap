@@ -76,15 +76,13 @@ test("a section's page sends its own fields only, so saving it leaves the other 
 		analytics: { googleAnalytics: "G-PSW1MY7HB4", googleTagManager: "", metaPixel: "123456789012345" },
 		customCode: '<script async src="https://static.example.com/101234567.js"></script>',
 	});
-	// Double opt-in and the welcome email, on here, also turn the other off.
-	const linked = { signups: ["welcome"], welcome: ["requireConfirmation"] };
 	for (const { id } of SETTINGS_SECTIONS) {
-		assert.deepEqual(Object.keys(readSettingsForm(fullForm(id))).sort(), [...SECTION_FIELDS[id], ...(linked[id] ?? [])].sort(), id);
+		assert.deepEqual(Object.keys(readSettingsForm(fullForm(id))).sort(), [...SECTION_FIELDS[id]].sort(), id);
 	}
 });
 
-test("double opt-in turned on turns the welcome email off in the same save, and the reverse", () => {
-	assert.deepEqual(readSettingsForm(fullForm("signups")).welcome, { enabled: false });
+test("the confirmation settings leave welcome automations alone", () => {
+	assert.equal("welcome" in readSettingsForm(fullForm("signups")), false);
 	assert.equal(readSettingsForm(fullForm("welcome")).requireConfirmation, false);
 
 	const welcomeOff = fullForm("welcome");
@@ -179,7 +177,6 @@ test("the overview says where each section stands", () => {
 		general: { text: "Field notes · field-notes", tone: "none" },
 		sender: { text: "Shared address · hello@field-notes.mailcheap.ai", tone: "none" },
 		signups: { text: "Double opt-in on", tone: "on" },
-		welcome: { text: "Replaced by the confirmation email", tone: "none" },
 		cleanup: { text: "On · after 8 ignored issues", tone: "on" },
 		website: { text: "Live · field-notes.mailcheap.ai", tone: "on" },
 		form: { text: "Off", tone: "off" },
@@ -189,7 +186,7 @@ test("the overview says where each section stands", () => {
 	const plain = { ...newsletter, requireConfirmation: false, welcome: { enabled: false }, cleanup: { enabled: false }, archiveEnabled: false };
 	const summary = getSettingsSummary({ newsletter: plain, ...context });
 	assert.deepEqual(summary.signups, { text: "Double opt-in off", tone: "off" });
-	assert.deepEqual(summary.welcome, { text: "Off", tone: "off" });
+	assert.equal(summary.welcome, undefined);
 	assert.deepEqual(summary.cleanup, { text: "Off", tone: "off" });
 	assert.deepEqual(summary.website, { text: "Off", tone: "off" });
 
@@ -222,11 +219,6 @@ test("notifications say how often the newsletter's own summary comes", () => {
 	assert.deepEqual(withSummary("off"), { text: "Summary off", tone: "off" });
 });
 
-test("the welcome email shows paused while the month's emails are used up", () => {
-	const welcoming = { ...newsletter, requireConfirmation: false };
-	assert.deepEqual(getSettingsSummary({ newsletter: welcoming, ...context }).welcome, { text: "On", tone: "on" });
-	assert.deepEqual(getSettingsSummary({ newsletter: welcoming, ...context, isWelcomePaused: true }).welcome, { text: "Paused", tone: "warning" });
-});
 
 test("the sender asks for a look without a postal address or with an unverified domain", () => {
 	const noAddress = { ...newsletter, postalAddress: "", postalAddressCleared: true };

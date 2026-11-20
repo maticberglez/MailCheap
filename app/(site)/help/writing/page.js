@@ -402,7 +402,7 @@ export default function WritingPage() {
 				<li>
 					<strong>To</strong>: your own address to start with. Type up to {MAX_TEST_RECIPIENTS} addresses, separated by commas, like
 					a colleague who reads every issue before it goes out: each gets their own email. Save as my default test address keeps
-					them for your next tests, here and on the <LinkApp href="/newsletters/welcome">Welcome email page</LinkApp>.
+					them for your next campaign tests.
 				</li>
 				<li>
 					<strong>Preview as</strong>, optional: start typing to find one of your active contacts, the newest first, each with their

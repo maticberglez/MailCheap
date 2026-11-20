@@ -98,6 +98,8 @@ const newsletterSchema = new mongoose.Schema(
 			name: String,
 			subject: String,
 			previewText: String,
+			format: { type: String, enum: ["rich", "markdown"] },
+			markdown: String,
 			html: String,
 		},
 		// The newsletter's own confirmation email; the built-in one goes out until it has one.

@@ -31,11 +31,6 @@ export default function NewslettersPage() {
 				where it stands, like double opt-in on or the website&apos;s address. A card opens its section&apos;s page, like Settings /
 				General, whose back arrow returns to the overview. Once you change something there, a bar offers to save or discard it.
 			</p>
-			<FigureHelp
-				src="/help/newsletters/settings.webp"
-				alt="The settings overview: general, sender, confirm signups, welcome email, list cleanup, website, form for your site and design, each with where it stands."
-				caption="The settings overview"
-			/>
 
 			<h2 id="general">General</h2>
 			<ul>
@@ -97,7 +92,7 @@ export default function NewslettersPage() {
 			<h2 id="confirm-signups">Confirm new signups</h2>
 			<p>
 				With confirmed opt-in, people who sign up get an email with a button, and only join your list once they click it. Until then
-				they&apos;re pending and get nothing else. New newsletters start with confirmed opt-in and the standalone welcome email off.
+				they&apos;re pending and get nothing else. New newsletters start with confirmed opt-in off.
 				Enable confirmed opt-in if you want subscribers to confirm their email address.
 			</p>
 			<p>
@@ -116,9 +111,8 @@ export default function NewslettersPage() {
 				)}
 			</p>
 			<p>
-				New subscribers get the confirmation email or your welcome email, not both. Turning on double opt-in while the welcome email
-				is on turns the welcome email off when you save, and the page says so first. From the API or an AI assistant, send both
-				changes in the same request.
+				If a welcome automation is live, put it back in draft in <LinkApp href="/automations">Automations</LinkApp> before
+				turning on double opt-in.
 			</p>
 			{isCloud() && (
 				<p>
@@ -143,31 +137,13 @@ export default function NewslettersPage() {
 			<p>
 				Open the draft&apos;s actions menu and choose Make live to publish a welcome email. A live automation can have one email
 				triggered when a subscriber joins, with an optional connected Exit. Use the newsletter&apos;s sender and reply address,
-				and turn off double opt-in and the separate welcome email first. Other flows can still run in simulation. Edits stay
+				and turn off double opt-in first. Other flows can still run in simulation. Edits stay
 				in the browser draft until you choose Publish changes. Put back in draft stops new sends and keeps your browser draft.
 			</p>
 			<p>
-				An email each new subscriber gets when they join, written in the same{" "}
-				<Link href={getHelpHref("writing", "editor")}>editor</Link> as your issues, with pictures, buttons and their{" "}
-				<Link href={getHelpHref("writing", "first-name")}>first name</Link>. On the{" "}
-				<LinkApp href="/newsletters/welcome">Welcome email page</LinkApp>, Preview shows it as they get it and Send test sends the
-				saved version to you or the addresses you type, read as one of your contacts if you pick one, like{" "}
-				<Link href={getHelpHref("writing", "preview")}>an issue&apos;s test</Link>. While double opt-in is on, new subscribers get the
-				confirmation email instead: turning the welcome
-				email on turns double opt-in off when you save, and the page says so first.
-				{isCloud() && (
-					<>
-						{" "}
-						Like issues, it goes through the <Link href={getHelpHref("sending", "content-check")}>content check</Link>: while
-						it&apos;s in review, new subscribers don&apos;t get it.
-					</>
-				)}
+				Like issues, welcome automations go through the <Link href={getHelpHref("sending", "content-check")}>content check</Link>.
+				New subscribers don&apos;t get the email while it&apos;s in review.
 			</p>
-			<FigureHelp
-				src="/help/newsletters/welcome-email.webp"
-				alt="The welcome email page with its switch on, a note that saving turns off double opt-in, and the email in the editor."
-				caption="The welcome email"
-			/>
 			{isCloud() && (
 				<p>
 					Welcome emails count toward your plan&apos;s emails. Once the month&apos;s emails are used up, they pause until your emails

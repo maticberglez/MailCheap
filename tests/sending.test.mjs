@@ -88,7 +88,7 @@ test("issues link to their archive page; drafts to the one their subject gives",
 
 	assert.equal(getIssueWebUrl({ campaign: issue, newsletter }), null, "archive off");
 	assert.equal(getIssueWebUrl({ campaign: { ...issue, archiveListed: false }, newsletter: archived }), null);
-	const welcome = getWelcomeContent({ welcome: { enabled: true, subject: "Welcome", markdown: "Hi" } });
+	const welcome = getWelcomeContent({ welcomeAutomation: { id: "welcome", format: "markdown", subject: "Welcome", markdown: "Hi" } });
 	assert.equal(getIssueWebUrl({ campaign: welcome, newsletter: archived }), null, "welcome email");
 });
 
@@ -182,19 +182,20 @@ test("send problems block incomplete or oversized emails", () => {
 	assert.match(getSendProblem({ campaign: oversized, newsletter }), /Gmail clips emails over 100 KB/);
 });
 
-test("welcome content needs the toggle, a subject, and content", () => {
+test("welcome content requires a published automation, a subject and content", () => {
 	const welcome = { enabled: true, subject: " Welcome ", markdown: "Hello" };
+	const live = { ...welcome, id: "welcome", format: "markdown" };
 	assert.equal(getWelcomeContent(null), null);
-	assert.equal(getWelcomeContent({ welcome: { ...welcome, enabled: false } }), null);
-	assert.equal(getWelcomeContent({ welcome: { ...welcome, subject: "" } }), null);
-	assert.equal(getWelcomeContent({ welcome: { ...welcome, markdown: " \n" } }), null);
-	assert.deepEqual(getWelcomeContent({ welcome }), {
+	assert.equal(getWelcomeContent({ welcome }), null, "the old switch cannot send");
+	assert.equal(getWelcomeContent({ welcomeAutomation: { ...live, subject: "" } }), null);
+	assert.equal(getWelcomeContent({ welcomeAutomation: { ...live, markdown: " \n" } }), null);
+	assert.deepEqual(getWelcomeContent({ welcomeAutomation: live }), {
 		format: "markdown",
 		subject: "Welcome",
 		markdown: "Hello",
 		previewText: "",
 	});
-	assert.equal(getWelcomeContent({ welcome: { ...welcome, previewText: " Reply hi " } }).previewText, "Reply hi");
+	assert.equal(getWelcomeContent({ welcomeAutomation: { ...live, previewText: " Reply hi " } }).previewText, "Reply hi");
 });
 
 test("chunk splits ids into send batches", () => {

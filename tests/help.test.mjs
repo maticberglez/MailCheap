@@ -107,7 +107,7 @@ test("every link from the help center and the docs into the dashboard opens a pa
 		for (const [, href] of (await readSource(file)).matchAll(/<LinkApp\s+href=(?:"([^"]*)"|\{)/g)) links.push({ file, href });
 	}
 	assert.ok(links.length >= 30, "articles link to the dashboard pages they mention");
-	assert.ok(links.some(({ href }) => href === "/domains") && links.some(({ href }) => href === "/newsletters/welcome"));
+	assert.ok(links.some(({ href }) => href === "/domains") && links.some(({ href }) => href === "/automations"));
 	for (const { file, href } of links) {
 		assert.ok(href, `${file} gives LinkApp a literal path`);
 		assert.ok(pages.has(href.replace(/[?#].*$/, "")), `${file} links to ${href}, which isn't a page of the app`);

@@ -1,8 +1,5 @@
-import LayoutSettingsSection from "@/components/LayoutSettingsSection";
-import { getSettingsPage } from "@/lib/settings-page";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Welcome email" };
-
-export default async function WelcomePage() {
-	return <LayoutSettingsSection section="welcome" page={await getSettingsPage({ section: "welcome" })} />;
+export default function WelcomePage() {
+	redirect("/automations");
 }

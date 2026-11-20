@@ -230,7 +230,7 @@ export default function SendingPage() {
 					</p>
 					<p>
 						The check also reads your own welcome, confirmation and last-chance emails when you save them. If one looks clearly
-						harmful, the <LinkApp href="/newsletters/welcome">Welcome email</LinkApp>,{" "}
+						harmful, the <LinkApp href="/automations">Welcome automation</LinkApp>,{" "}
 						<LinkApp href="/newsletters/signups">Confirm signups</LinkApp> or <LinkApp href="/newsletters/cleanup">List cleanup</LinkApp>{" "}
 						page says In review until a person at MailCheap looks at it. Meanwhile, MailCheap&apos;s own confirmation and last-chance
 						emails go out instead, and new subscribers get no welcome email. If it can&apos;t go out, you get an email saying why, and

@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, CircleAlert, CodeXml, ExternalLink, FlaskConical, Loader2, RotateCcw, X } from "lucide-react";
+import { Check, CircleAlert, CodeXml, ExternalLink, Loader2, RotateCcw, X } from "lucide-react";
 import { addDefaultAuthor, setDefaultAuthor } from "@/app/(app)/campaigns/actions";
-import { checkSlug, saveNewsletter, sendWelcomeTest } from "@/app/(app)/newsletters/actions";
+import { checkSlug, saveNewsletter } from "@/app/(app)/newsletters/actions";
 import BarSave from "@/components/BarSave";
 import ButtonCopy from "@/components/ButtonCopy";
 import CardWebsiteDomain, { OWN_DOMAIN_ID } from "@/components/CardWebsiteDomain";
-import DialogSendTest from "@/components/DialogSendTest";
 import EditorEmail from "@/components/EditorEmail";
 import InputImage from "@/components/InputImage";
 import LinkHelp from "@/components/LinkHelp";
 import LogoAnalyticsTool from "@/components/LogoAnalyticsTool";
-import NoticeWelcomePaused from "@/components/NoticeWelcomePaused";
 import PickerAuthor from "@/components/PickerAuthor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,22 +40,20 @@ import { getSlugFormatProblem } from "@/lib/newsletter-settings";
 import { ADD_DOMAIN_PATH, DOMAINS_PATH, MAX_AUTHOR_BIO_LENGTH, MAX_DESCRIPTION_LENGTH } from "@/lib/newsletters";
 import { getSharedAddress } from "@/lib/sender-rules";
 import { slugify } from "@/lib/slug";
-import { describeTestRecipients } from "@/lib/test-email-rules";
 import { toast } from "@/lib/toast";
 import { usePaywall } from "@/lib/use-paywall";
 import { cn } from "@/lib/utils";
 import { ANALYTICS_TOOLS, readAnalyticsField } from "@/lib/website-analytics";
 import { CUSTOM_CODE_MAX_LENGTH, readCustomCode } from "@/lib/website-code";
-import { prefillWelcome } from "@/lib/welcome-content";
 
 const IMAGE_PREVIEW_PATTERN = /^(https:\/\/\S+\.\S{2,}\/\S+|\/\S+\.\w{3,4})$/;
 
 // One section of the open newsletter's settings, on its own page (lib/newsletter-sections.js), which saves only that
 // section's fields. It saves from onSubmit, not a form action: React resets a form after its action, which turned the
 // switches back to how the page opened and dropped what an error refused. Discard goes back to what the newsletter has
-// saved. welcomePause: the notice to show while the month's emails are used up and welcome emails are skipped.
-// signupReviews: whether the content check holds the saved welcome, confirmation or last-chance email
-// (lib/signup-email-review.js), never why. isCloud: MailCheap Cloud, whose plans count the confirmation and welcome
+// saved.
+// signupReviews: whether the content check holds the saved confirmation or last-chance email
+// (lib/signup-email-review.js), never why. isCloud: MailCheap Cloud, whose plans count confirmation
 // emails among their monthly emails.
 // defaultPostalAddress: what its emails print until it has its own (lib/postal-address.js); the editor's checks link
 // to the field with #postal-address. hasArchiveHost: the server hosts websites on customers' own subdomains, and
@@ -74,10 +70,7 @@ export default function FormNewsletter({
 	websiteDomain = null,
 	hasSentIssue,
 	defaultPostalAddress,
-	isSendingEnabled,
-	testRecipients = [],
 	cleanupTotals,
-	welcomePause,
 	signupReviews = null,
 	contactFields = [],
 	isCloud = false,
@@ -154,15 +147,6 @@ export default function FormNewsletter({
 				/>
 			)}
 			{section === "signups" && <SectionSignups {...form} review={signupReviews?.confirmation} />}
-			{section === "welcome" && (
-				<SectionWelcome
-					{...form}
-					isSendingEnabled={isSendingEnabled}
-					testRecipients={testRecipients}
-					welcomePause={welcomePause}
-					review={signupReviews?.welcome}
-				/>
-			)}
 			{section === "cleanup" && <SectionCleanup {...form} totals={cleanupTotals} review={signupReviews?.lastChance} />}
 			{section === "website" && (
 				<SectionWebsite
@@ -355,7 +339,6 @@ function SectionSender({ draft, set, update, newsletter, domains, sharedDomain, 
 function SectionSignups({ draft, setDraft, set, newsletter, sender, previewNewsletter, contactFields, discardCount, isCloud, review }) {
 	const { name, description, confirmationEdits, isConfirmationRequired } = draft;
 	const [version, setVersion] = useState(0);
-	const isWelcomeReplaced = isConfirmationRequired && !newsletter.requireConfirmation && Boolean(newsletter.welcome?.enabled);
 	const confirmation = useMemo(
 		() => getDraftConfirmation({ name, description, confirmationEdits }, newsletter),
 		[name, description, confirmationEdits, newsletter]
@@ -389,7 +372,7 @@ function SectionSignups({ draft, setDraft, set, newsletter, sender, previewNewsl
 				the list.{isConfirmationRequired && " It's the only email they get: say what comes next."}
 				{isCloud && " Confirmation emails count toward your plan's monthly emails."}
 			</p>
-			{isWelcomeReplaced && <NoticeSection>Saving turns off the welcome email: new subscribers get this email instead.</NoticeSection>}
+			{isConfirmationRequired && newsletter.welcomeAutomation?.id && <NoticeSection>Put the live automation back in draft before turning on double opt-in.</NoticeSection>}
 			{isConfirmationRequired && review && <NoticeReview review={review} instead="new subscribers get the built-in confirmation email" />}
 			{isConfirmationRequired && (
 				<EditorEmail
@@ -406,103 +389,6 @@ function SectionSignups({ draft, setDraft, set, newsletter, sender, previewNewsl
 					note={!isSameEmail(confirmation, builtIn) && <ButtonBuiltIn onClick={restoreBuiltIn} />}
 				/>
 			)}
-		</Section>
-	);
-}
-
-// Its switch works while signups confirm too: turned on, it says that saving turns double opt-in off (readSettingsForm
-// sends both). Switched on empty, it starts from the newsletter's name and description.
-function SectionWelcome({
-	draft,
-	setDraft,
-	newsletter,
-	sender,
-	previewNewsletter,
-	contactFields,
-	discardCount,
-	isSendingEnabled,
-	testRecipients,
-	welcomePause,
-	isCloud,
-	review,
-}) {
-	const paywall = usePaywall();
-	const hasPlan = paywall?.hasPlan ?? true;
-	const [isTestOpen, setIsTestOpen] = useState(false);
-	const testButtonRef = useRef(null);
-	const [version, setVersion] = useState(0);
-	const { isWelcomeEnabled, welcome } = draft;
-	const isConfirmationOn = Boolean(newsletter.requireConfirmation);
-	const changeWelcome = useCallback((changes) => setDraft((current) => ({ ...current, welcome: { ...current.welcome, ...changes } })), [setDraft]);
-
-	function switchWelcome(isEnabled) {
-		const next = isEnabled ? prefillWelcome(welcome, { name: draft.name, description: draft.description }) : welcome;
-		setDraft((current) => ({ ...current, isWelcomeEnabled: isEnabled, welcome: next }));
-		if (next !== welcome) setVersion((count) => count + 1);
-	}
-
-	function openTest() {
-		if (!hasPlan) return paywall.open("test");
-		setIsTestOpen(true);
-	}
-
-	return (
-		<Section
-			title="Send to new subscribers"
-			stagger={1}
-			action={<Switch name="welcomeEnabled" checked={isWelcomeEnabled} onCheckedChange={switchWelcome} aria-label="Welcome email" />}
-		>
-			<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
-				{isConfirmationOn && !isWelcomeEnabled
-					? "Double opt-in is on, so new subscribers get the confirmation email instead. Turning this on turns double opt-in off."
-					: "Each new subscriber gets it when they join."}
-				{isCloud && " Welcome emails count toward your plan's monthly emails."}
-			</p>
-			{isConfirmationOn && isWelcomeEnabled && (
-				<NoticeSection>Saving turns off double opt-in: new subscribers join right away, without confirming their address.</NoticeSection>
-			)}
-			{welcomePause && isWelcomeEnabled && <NoticeWelcomePaused {...welcomePause} className="px-4 py-3" />}
-			{review && isWelcomeEnabled && <NoticeReview review={review} instead="new subscribers don't get it" />}
-			<EditorEmail
-				key={`${discardCount}-${version}`}
-				name="welcome"
-				email={welcome}
-				onChange={changeWelcome}
-				newsletter={newsletter}
-				previewNewsletter={previewNewsletter}
-				sender={sender}
-				contactFields={contactFields}
-				note={
-					<p className="text-xs wrap-anywhere text-muted-foreground">
-						{isSendingEnabled || !hasPlan ? `Sends the saved version to ${describeTestRecipients(testRecipients)}` : "Sending is off"}
-					</p>
-				}
-			>
-				<Button
-					ref={testButtonRef}
-					type="button"
-					variant="outline"
-					size="sm"
-					onClick={openTest}
-					disabled={hasPlan && !isSendingEnabled}
-				>
-					<FlaskConical />
-					Send test
-				</Button>
-			</EditorEmail>
-			<DialogSendTest
-				isOpen={isTestOpen}
-				onOpenChange={setIsTestOpen}
-				onCloseAutoFocus={(event) => {
-					event.preventDefault();
-					testButtonRef.current?.focus();
-				}}
-				newsletterId={newsletter._id}
-				defaultRecipients={testRecipients}
-				description="Sends the saved welcome email, with [Test] before its subject."
-				contactHint="The welcome email as this contact would get it, with their first name and fields."
-				onSend={(values) => sendWelcomeTest(newsletter._id, values)}
-			/>
 		</Section>
 	);
 }

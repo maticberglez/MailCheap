@@ -185,17 +185,17 @@ export default function FormEmbed({ newsletter, appUrl, hasBotCheck = true }) {
 function TextSignupPath({ newsletter }) {
 	const text = newsletter.requireConfirmation
 		? "They confirm their address first."
-		: newsletter.welcome?.enabled
+		: newsletter.welcomeAutomation?.id
 			? "They join at once and get your welcome email."
 			: "They join at once.";
 	return (
 		<>
 			{text}{" "}
 			<Link
-				href={getSectionPath(newsletter.requireConfirmation ? "signups" : "welcome")}
+				href={newsletter.requireConfirmation ? getSectionPath("signups") : "/automations"}
 				className="font-medium whitespace-nowrap text-foreground underline decoration-foreground/30 underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
 			>
-				{newsletter.requireConfirmation ? "Confirm signups" : "Welcome email"}
+				{newsletter.requireConfirmation ? "Confirm signups" : "Automations"}
 			</Link>
 		</>
 	);

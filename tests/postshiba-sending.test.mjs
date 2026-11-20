@@ -850,7 +850,7 @@ describe("PostShiba blocks", () => {
 	test("blocking an account suspends its tenant: nothing it sends goes out until an admin unblocks it", async () => {
 		const user = await customer("ps-pause@example.com", "ps-pause");
 		const id = await draft(user);
-		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { welcome: { enabled: true, subject: "Hi", markdown: "Welcome." } } });
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { welcomeAutomation: { id: "welcome", subject: "Hi", format: "markdown", markdown: "Welcome." } } });
 		const admin = await signIn("admin@example.com");
 		const emailsBefore = platformEmails.length;
 		await withEnv({ URGENT_REPLY_TO: "owner-help@example.com" }, async () => {

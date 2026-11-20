@@ -87,7 +87,7 @@ test("a newsletter saved with both on before the rule still takes other changes"
 	assert.equal(updated.body.fromName, "Jane");
 });
 
-test("the settings pages switch the other one off in the same save", async () => {
+test("confirmation settings require the welcome automation to be paused first", async () => {
 	const user = await customer("signup-pages@example.com");
 	const id = user.newsletterId;
 	const welcomePage = form({ id, section: "welcome", welcomeEnabled: "on", welcomeSubject: "Welcome", welcomePreviewText: "", welcomeContent: "Hi" });
@@ -96,7 +96,13 @@ test("the settings pages switch the other one off in the same save", async () =>
 	let saved = await find();
 	assert.deepEqual([saved.requireConfirmation, saved.welcome.enabled], [false, true]);
 
-	assert.equal((await as(user, () => m.newsletters.saveNewsletter(null, form({ id, section: "signups", requireConfirmation: "on" })))).ok, true);
+	const turnOn = () => as(user, () => m.newsletters.saveNewsletter(null, form({ id, section: "signups", requireConfirmation: "on" })));
+	assert.match((await turnOn()).error, /welcome email is on|live automation/);
+	const paused = await callApi("POST", `/api/v1/newsletters/${id}/welcome-automation`, {
+		key: user.key, body: { automationId: "legacy-settings" },
+	});
+	assert.equal(paused.status, 200);
+	assert.equal((await turnOn()).ok, true);
 	saved = await find();
 	assert.deepEqual([saved.requireConfirmation, saved.welcome.enabled, saved.welcome.markdown], [true, false, "Hi"]);
 });
@@ -148,7 +154,7 @@ test("publishing a welcome automation saves its email and only the matching draf
 	const Message = (await import("../models/Message.js")).default;
 	await addVerifiedDomain(user, "example.com");
 	await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, {
-		$set: { requireConfirmation: false, fromEmail: "hello@example.com" },
+		$set: { requireConfirmation: false, fromEmail: "hello@example.com", welcome: WELCOME },
 	});
 	const path = `/api/v1/newsletters/${user.newsletterId}/welcome-automation`;
 	const read = () => m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
