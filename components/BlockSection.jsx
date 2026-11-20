@@ -17,6 +17,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { reshapeSection } from "@/lib/editor-columns";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
@@ -161,18 +162,25 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 						}}
 					>
 						<div className="grid grid-cols-2 gap-2 px-3 pt-3">
-							<label className="grid gap-1 text-xs">Desktop columns
-								<select value={desktop} onChange={(event) => setLayout(Number(event.target.value), columns?.attrs.mobile)} className="h-8 rounded-md border bg-background px-2">
-									{[1, 2, 3, ...(desktop === 4 ? [4] : [])].map((count) => <option key={count} value={count}>{count}</option>)}
-								</select>
-							</label>
-							<label className="grid gap-1 text-xs">Mobile columns
-								<select value={desktop === 1 ? "1" : mobile} disabled={desktop === 1} onChange={(event) => setMobileLayout(event.target.value)}
-									className="h-8 rounded-md border bg-background px-2">
-									<option value="1">1</option>
-									<option value="same">Same as desktop</option>
-								</select>
-							</label>
+							<div className="grid gap-1 text-xs">
+								<span>Desktop columns</span>
+								<Select value={String(desktop)} onValueChange={(value) => setLayout(Number(value), columns?.attrs.mobile)}>
+									<SelectTrigger size="sm" aria-label="Desktop columns" className="w-full"><SelectValue /></SelectTrigger>
+									<SelectContent position="popper">
+										{[1, 2, 3, ...(desktop === 4 ? [4] : [])].map((count) => <SelectItem key={count} value={String(count)}>{count}</SelectItem>)}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="grid gap-1 text-xs">
+								<span>Mobile columns</span>
+								<Select value={desktop === 1 ? "1" : mobile} disabled={desktop === 1} onValueChange={setMobileLayout}>
+									<SelectTrigger size="sm" aria-label="Mobile columns" className="w-full"><SelectValue /></SelectTrigger>
+									<SelectContent position="popper">
+										<SelectItem value="1">1</SelectItem>
+										<SelectItem value="same">Same as desktop</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
 						</div>
 						<div className="flex gap-3 px-3 pt-3">
 							{["light", "dark"].map((mode) => (

@@ -56,3 +56,21 @@ test("duplicating a section preserves its linked image and templates preserve th
 	const [saved] = readEditorTemplates(storage, "user:newsletter");
 	assert.match(renderEmail({ format: "rich", html: withEmailSections(saved.html) }).html, /href="https:\/\/example\.com\/item"[^>]*>\s*<img/);
 });
+
+test("templates with campaign audience rules can only replace email bodies in compatible editors", async () => {
+	const { canUseEditorTemplate } = await import("../lib/editor-templates.js");
+	const email = { html: "<p>Hello</p>" };
+	const section = { html: '<section data-section=""><p>Hello</p></section>' };
+	const targeted = { html: '<section data-section="" data-show="tag:vip"><p>Hello</p></section>' };
+	const webOnly = { html: '<section data-section="" data-where="web"><p>Hello</p></section>' };
+	const plain = { withSections: false, withAudience: false };
+	const automation = { withSections: true, withAudience: false };
+	const campaign = { withSections: true, withAudience: true };
+	assert.equal(canUseEditorTemplate(email, plain), true);
+	assert.equal(canUseEditorTemplate(section, plain), false);
+	assert.equal(canUseEditorTemplate(section, automation), true);
+	for (const template of [targeted, webOnly]) {
+		assert.equal(canUseEditorTemplate(template, automation), false);
+		assert.equal(canUseEditorTemplate(template, campaign), true);
+	}
+});

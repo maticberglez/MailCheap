@@ -361,8 +361,8 @@ export default function WritingPage() {
 			<h2 id="templates-and-countdowns">Templates and countdowns</h2>
 			<p>
 				Open Templates in the email editor to save the email body. Put your cursor inside a section to save just that section.
-				Insert a saved template to add it after the current block. Templates stay in this browser for your newsletter and keep
-				images and their links. Choose Duplicate section in a section&apos;s settings to copy it inside the current email.
+				Select a saved template to preview it. Use template asks you to confirm before replacing the entire email body.
+				Delete template also asks for confirmation. Templates stay in this browser for your newsletter and keep images and their links. Choose Duplicate section in a section&apos;s settings to copy it inside the current email.
 			</p>
 			<p>
 				Choose Countdown from the slash menu and paste the HTTPS image URL from your email countdown provider.

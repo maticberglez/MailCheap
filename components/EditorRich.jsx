@@ -185,7 +185,7 @@ export default function EditorRich({
 
 	return (
 		<SectionsContext value={sections}>
-			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} withSections={sectionLayouts} withAudience={Boolean(sections)} />}
+			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sections)} />}
 			<EditorContent editor={editor} className="relative" />
 			<GutterProblems
 				editor={editor}
