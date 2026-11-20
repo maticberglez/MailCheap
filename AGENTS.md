@@ -70,7 +70,14 @@ Every feature or significant change gets a security review of its diff before it
 - Comments only for what the code can't show: a constraint, a reason, an outside rule. Not what the next line does.
 - Read the code around a change and write like it.
 
+## Git
+
+- Write commit subjects in the form `type: short description`. Use `feat:` for features, `fix:` for bug fixes, and an appropriate prefix such as `docs:`, `test:`, or `refactor:` for other changes.
+- Create a local commit automatically when a new feature is complete and its checks pass. Include only the changes for that feature. Push only when explicitly requested.
+
 ## Tests
+
+- For significant changes, run the relevant existing tests and lint. Keep existing tests and strengthen or add coverage when the change introduces behavior they do not cover. Report any checks that could not run.
 
 ```bash
 npm test       # node --test, the integration tests start their own mongod: it has to be on the PATH (or MONGOD_PATH)
