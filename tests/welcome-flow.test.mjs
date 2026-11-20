@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "../lib/welcome-flow.js";
+import { MAX_FLOW_STEPS, connectFlowNodes, flowConnectionPath, nearestFlowInput, orientFlowConnection, readPublishableWelcomeFlow, resistCanvasPan, reverseWireLane, simulateWelcomeFlow, zoomCanvasAround } from "../lib/welcome-flow.js";
 
 test("a welcome flow checks entry and exit tags, branches and accumulates delay through repeats", () => {
 	const flow = {
@@ -121,4 +121,20 @@ test("trigger filters, tag actions and A/B paths work together without changing 
 	assert.deepEqual(result.path.map(({ id }) => id), ["ab", "tag"]);
 	assert.equal(result.reason, "Exit filter matched");
 	assert.deepEqual(tags, ["joined", "vip", "active"]);
+});
+
+test("live welcome flows accept a single connected email and reject unsupported steps and triggers", () => {
+	const email = { id: "email", type: "email", value: " Welcome ", html: "<p>Hello</p>" };
+	assert.deepEqual(readPublishableWelcomeFlow({ nodes: [email] }), {
+		subject: "Welcome", previewText: "", html: "<p>Hello</p>", fromName: "", fromEmail: "", replyTo: "",
+	});
+	const exit = { id: "exit", type: "exit" };
+	assert.ok(readPublishableWelcomeFlow({ nodes: [{ ...email, next: exit.id }, exit] }));
+	for (const flow of [
+		{ nodes: [email, exit] },
+		{ nodes: [email, { id: "delay", type: "delay" }] },
+		{ nodes: [email], trigger: "tag" },
+		{ nodes: [email], triggerFilters: ["vip"] },
+		{ nodes: [{ ...email, html: { code: "not HTML" } }] },
+	]) assert.equal(readPublishableWelcomeFlow(flow), null);
 });

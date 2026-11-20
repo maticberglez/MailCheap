@@ -202,3 +202,12 @@ test("chunk splits ids into send batches", () => {
 	assert.deepEqual(chunk([], 50), []);
 	assert.equal(chunk(Array.from({ length: 120 }, (_, index) => index), 50).length, 3);
 });
+
+test("a published automation supplies the welcome email only while it is live and double opt-in is off", () => {
+	const welcome = { enabled: false, subject: "Saved separately", markdown: "Hello" };
+	const welcomeAutomation = { id: "welcome", subject: "Published subject", html: "<p>Published body</p>" };
+	assert.equal(getWelcomeContent({ welcome, welcomeAutomation }).subject, "Published subject");
+	assert.equal(getWelcomeContent({ welcome, welcomeAutomation }).html, "<p>Published body</p>");
+	assert.equal(getWelcomeContent({ welcome, welcomeAutomation, requireConfirmation: true }), null);
+	assert.equal(getWelcomeContent({ welcome }), null);
+});

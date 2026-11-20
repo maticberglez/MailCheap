@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { ArrowLeft, Copy, GitBranch, MoreHorizontal, PenLine, Plus, Trash2 } from "lucide-react";
+import { setAutomationLive } from "@/app/(app)/automations/actions";
 import { DialogNewDraft } from "@/components/DialogNewCampaign";
 import BadgeStatus from "@/components/BadgeStatus";
 import TextEmpty from "@/components/TextEmpty";
@@ -26,13 +27,13 @@ import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAuto
 
 const noop = () => () => {};
 
-export default function AutomationDrafts({ scope, draftId, emailNodeId, selectedNodeId, addresses, isOverview = false }) {
+export default function AutomationDrafts({ scope, draftId, emailNodeId, selectedNodeId, addresses, newsletterId, liveAutomation, isOverview = false }) {
 	const ready = useSyncExternalStore(noop, () => true, () => false);
 	if (!ready) return <p className="p-4 text-sm text-muted-foreground">Loading automations…</p>;
-	return draftId ? <OpenDraft scope={scope} id={draftId} emailNodeId={emailNodeId} selectedNodeId={selectedNodeId} addresses={addresses} /> : <DraftList scope={scope} isOverview={isOverview} />;
+	return draftId ? <OpenDraft scope={scope} id={draftId} emailNodeId={emailNodeId} selectedNodeId={selectedNodeId} addresses={addresses} isLive={liveAutomation?.id === draftId} /> : <DraftList scope={scope} isOverview={isOverview} newsletterId={newsletterId} liveAutomation={liveAutomation} />;
 }
 
-function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
+function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses, isLive }) {
 	const [saved] = useState(() => {
 		try {
 			const entry = listAutomationDrafts(localStorage, scope).find((draft) => draft.id === id);
@@ -47,7 +48,7 @@ function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
 			<div className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
 				<Button asChild variant="ghost" size="icon" aria-label="Back to automations"><Link href="/automations"><ArrowLeft /></Link></Button>
 				<h1 className="truncate text-xl font-semibold">{saved?.name ?? "Automation unavailable"}</h1>
-				{saved && <BadgeStatus status="draft" />}
+				{saved && <BadgeStatus status={isLive ? "live" : "draft"} />}
 			</div>
 			{saved ? <FormWelcomeFlow storageKey={automationDraftKey(scope, id)} initialFlow={saved.flow} editPath={`/automations/${id}/email`} selectedNodeId={selectedNodeId} addresses={addresses} /> : <p className="px-3 text-sm text-muted-foreground">This draft could not be opened in this browser.</p>}
 		</div>
@@ -161,7 +162,7 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 	);
 }
 
-function DraftList({ scope, isOverview }) {
+function DraftList({ scope, isOverview, newsletterId, liveAutomation }) {
 	const router = useRouter();
 	const [initial] = useState(() => {
 		try {
@@ -181,6 +182,28 @@ function DraftList({ scope, isOverview }) {
 	const [error, setError] = useState(initial.error ?? "");
 	const [editing, setEditing] = useState(null);
 	const [deleting, setDeleting] = useState(null);
+	const [publishing, setPublishing] = useState(null);
+	const [isChangingStatus, startStatusChange] = useTransition();
+
+	function changeStatus() {
+		const { draft, isLive } = publishing;
+		startStatusChange(async () => {
+			setError("");
+			try {
+				const result = await setAutomationLive({
+					newsletterId, automationId: draft.id,
+					draft: isLive ? undefined : { name: draft.name, flow: readAutomationDraft(localStorage, scope, draft.id) },
+				});
+				if (result.error) setError(result.error);
+				else {
+					setPublishing(null);
+					router.refresh();
+				}
+			} catch {
+				setError("Could not change the automation status.");
+			}
+		});
+	}
 
 	function save(next) {
 		try {
@@ -222,6 +245,7 @@ function DraftList({ scope, isOverview }) {
 		if (open) router.push(`/automations/${id}`);
 	}
 
+	const externalLive = liveAutomation?.id && !drafts.some(({ id }) => id === liveAutomation.id);
 	const shownDrafts = isOverview
 		? drafts.toSorted((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")).slice(0, 5)
 		: drafts;
@@ -241,6 +265,13 @@ function DraftList({ scope, isOverview }) {
 						<Button disabled={Boolean(initial.error)}><Plus data-icon="inline-start" /> New</Button>
 					</DialogNewDraft>
 				</HeaderPage>
+			)}
+			{externalLive && (
+				<div className="flex items-center gap-2 rounded-xl px-4 py-2 shadow-border">
+					<span className="min-w-0 flex-1 truncate text-sm font-medium">{liveAutomation.name}</span>
+					<BadgeStatus status="live" />
+					<Button variant="outline" size="sm" onClick={() => { setError(""); setPublishing({ draft: liveAutomation, isLive: true }); }}>Put back in draft</Button>
+				</div>
 			)}
 			{shownDrafts.length ? (
 				<div className="animate-enter overflow-hidden rounded-xl shadow-border">
@@ -265,7 +296,7 @@ function DraftList({ scope, isOverview }) {
 											<Link className="min-w-0 truncate font-medium after:absolute after:inset-0" href={`/automations/${draft.id}`}>{draft.name}</Link>
 										</div>
 									</TableCell>
-									<TableCell><BadgeStatus status="draft" /></TableCell>
+									<TableCell><BadgeStatus status={liveAutomation?.id === draft.id ? "live" : "draft"} /></TableCell>
 									{["Recipients", "Opens", "Clicks"].map((column) => <TableCell key={column} className="hidden text-right md:table-cell"><TextEmpty label="No data" /></TableCell>)}
 									<TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{draft.updatedAt ? formatRelative(draft.updatedAt) : <TextEmpty />}</TableCell>
 									<TableCell className="pr-2 text-right">
@@ -274,10 +305,15 @@ function DraftList({ scope, isOverview }) {
 												<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${draft.name}`} className="relative z-10 text-muted-foreground hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground"><MoreHorizontal /></Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align="end" className="min-w-52">
+												<DropdownMenuItem onSelect={() => { setError(""); setPublishing({ draft, isLive: liveAutomation?.id === draft.id }); }}>
+													{liveAutomation?.id === draft.id ? "Put back in draft" : "Make live"}
+												</DropdownMenuItem>
+												{liveAutomation?.id === draft.id && <DropdownMenuItem onSelect={() => { setError(""); setPublishing({ draft, isLive: false }); }}>Publish changes</DropdownMenuItem>}
+												<DropdownMenuSeparator />
 												<DropdownMenuItem onSelect={() => createDraft(draft, false)}><Copy /> Duplicate</DropdownMenuItem>
 												<DropdownMenuItem onSelect={() => setEditing(draft)}><PenLine /> Rename</DropdownMenuItem>
 												<DropdownMenuSeparator />
-												<DropdownMenuItem variant="destructive" onSelect={() => setDeleting(draft)}><Trash2 /> Delete</DropdownMenuItem>
+												<DropdownMenuItem variant="destructive" disabled={liveAutomation?.id === draft.id} onSelect={() => setDeleting(draft)}><Trash2 /> Delete</DropdownMenuItem>
 											</DropdownMenuContent>
 										</DropdownMenu>
 									</TableCell>
@@ -286,10 +322,25 @@ function DraftList({ scope, isOverview }) {
 						</TableBody>
 					</Table>
 				</div>
-			) : !initial.error && (isOverview
+			) : !initial.error && !externalLive && (isOverview
 				? <p className="rounded-xl px-4 py-6 text-center text-sm text-muted-foreground shadow-border">No automations yet</p>
 				: <StateEmpty icon={GitBranch} title="No automations yet" />)}
-			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+			{error && !publishing && <p role="alert" className="text-sm text-destructive">{error}</p>}
+			<Dialog open={Boolean(publishing)} onOpenChange={(open) => { if (!open && !isChangingStatus) { setPublishing(null); setError(""); } }}>
+				<DialogContent>
+					<DialogTitle>{publishing?.isLive ? "Put automation back in draft?" : "Make automation live?"}</DialogTitle>
+					<DialogDescription>
+						{publishing?.isLive
+							? "New subscribers will stop receiving this automation’s email."
+							: "New subscribers will receive the published email. Changes to this draft take effect when you publish again."}
+					</DialogDescription>
+					{error && publishing && <p role="alert" className="text-sm text-destructive">{error}</p>}
+					<DialogFooter>
+						<Button variant="outline" disabled={isChangingStatus} onClick={() => { setPublishing(null); setError(""); }}>Cancel</Button>
+						<Button disabled={isChangingStatus} onClick={changeStatus}>{publishing?.isLive ? "Put back in draft" : "Make live"}</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 			<Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
 				<DialogContent>
 					<DialogTitle>Rename automation</DialogTitle>

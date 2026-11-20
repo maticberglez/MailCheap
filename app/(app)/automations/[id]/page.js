@@ -12,7 +12,7 @@ export default async function AutomationPage({ params, searchParams }) {
 	if (!selected) return <p>Select the newsletter that owns this automation.</p>;
 	const scope = `welcome-flow:${user.id}:${selected._id}`;
 	const [addresses, { node }] = await Promise.all([getAutomationEmailAddresses(account, user, selected), searchParams]);
-	return <AutomationDrafts key={`${scope}:${id}:${node ?? ""}`} scope={scope} draftId={id} selectedNodeId={typeof node === "string" ? node : null}
+	return <AutomationDrafts key={`${scope}:${id}:${node ?? ""}`} scope={scope} newsletterId={String(selected._id)} liveAutomation={selected.welcomeAutomation} draftId={id} selectedNodeId={typeof node === "string" ? node : null}
 		addresses={serialize({ ...addresses, newsletterId: String(selected._id), testRecipient: user.email,
 			name: selected.name, imageUrl: selected.imageUrl, theme: selected.theme, postalAddress: selected.postalAddress, replyTo: selected.replyTo,
 		})} />;

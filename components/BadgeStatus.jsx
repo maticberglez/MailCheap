@@ -43,6 +43,7 @@ const STATUS_TONES = {
 	unpaid: "red",
 	sent: "green",
 	delivered: "green",
+	live: "green",
 	success: "green",
 	verified: "green",
 	healthy: "green",

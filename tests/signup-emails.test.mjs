@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { flushAfter } from "./stubs/next-server.mjs";
 import { getLastChanceContent } from "../lib/last-chance-content.js";
-import { activate, anonymous, as, callApi, catchRedirect, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
+import { activate, addVerifiedDomain, anonymous, as, callApi, catchRedirect, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 
 // New subscribers get the confirmation email or the welcome email, never both. The settings pages turn one off as the
 // other goes on, in one save; the API and MCP refuse a change that would leave both on and say how to switch.
@@ -137,4 +138,38 @@ test("the list cleanup page shows the last-chance email while the cleanup is on,
 
 	await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { "cleanup.enabled": false } });
 	assert.ok(!(await render()).includes('name="lastChanceSubject"'), "off, it's hidden and nothing of it is sent");
+});
+
+test("publishing a welcome automation saves its email and only the matching draft can stop it", async () => {
+	const user = await customer("automation-owner@example.com");
+	const outsider = await customer("automation-outsider@example.com");
+	const Message = (await import("../models/Message.js")).default;
+	await addVerifiedDomain(user, "example.com");
+	await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, {
+		$set: { requireConfirmation: false, fromEmail: "hello@example.com" },
+	});
+	const path = `/api/v1/newsletters/${user.newsletterId}/welcome-automation`;
+	const read = () => m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+	const email = { id: "email", type: "email", value: "Welcome", html: "<p>Hello</p>" };
+	const draft = { name: "Welcome", flow: { nodes: [email] } };
+	const publish = await callApi("POST", path, { key: user.key, body: { automationId: "welcome", draft } });
+	assert.equal(publish.status, 200, JSON.stringify(publish.body));
+	assert.deepEqual(publish.body, { live: true });
+	const snapshot = (await read()).welcomeAutomation;
+	assert.equal(snapshot.html, email.html);
+	const subscribe = async (address) => {
+		const result = await callApi("POST", "/api/v1/contacts", { key: user.key, body: { newsletter: user.newsletterId, email: address } });
+		assert.equal(result.status, 201, JSON.stringify(result.body));
+		await flushAfter();
+		return Message.findOne({ accountId: user.accountId, kind: "welcome", email: address }).lean();
+	};
+	const sent = await subscribe("active-automation@example.org");
+	assert.equal(sent?.welcomeAutomationVersion, snapshot.version);
+	assert.equal(sent?.status, "sent", sent?.error);
+	assert.equal((await callApi("POST", path, { key: outsider.key, body: { automationId: "welcome" } })).status, 404);
+	await callApi("POST", path, { key: user.key, body: { automationId: "cfa436c1-0502-4379-b5b5-e392df00bbb7" } });
+	assert.deepEqual((await read()).welcomeAutomation, snapshot);
+	assert.deepEqual((await callApi("POST", path, { key: user.key, body: { automationId: "welcome" } })).body, { live: false });
+	assert.equal((await read()).welcomeAutomation, undefined);
+	assert.equal(await subscribe("paused-automation@example.org"), null);
 });

@@ -19,6 +19,7 @@ const messageSchema = new mongoose.Schema(
 	{
 		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "test"], required: true },
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
+		welcomeAutomationVersion: String,
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
 		email: { type: String, required: true, lowercase: true, trim: true },

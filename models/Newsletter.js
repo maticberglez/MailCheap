@@ -86,6 +86,14 @@ const newsletterSchema = new mongoose.Schema(
 			markdown: { type: String },
 			html: { type: String },
 		},
+		welcomeAutomation: {
+			id: String,
+			version: String,
+			name: String,
+			subject: String,
+			previewText: String,
+			html: String,
+		},
 		// The newsletter's own confirmation email; the built-in one goes out until it has one.
 		confirmation: {
 			subject: { type: String, trim: true },

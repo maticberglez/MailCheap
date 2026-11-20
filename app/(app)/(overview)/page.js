@@ -110,7 +110,7 @@ export default async function OverviewPage({ searchParams }) {
 
 						{hasRole(view.role, "admin") && (
 							<Section title="Automations" href="/automations" stagger={4}>
-								<AutomationDrafts key={automationScope} scope={automationScope} isOverview />
+								<AutomationDrafts key={automationScope} scope={automationScope} newsletterId={selectedId} liveAutomation={selected.welcomeAutomation} isOverview />
 							</Section>
 						)}
 					</>
