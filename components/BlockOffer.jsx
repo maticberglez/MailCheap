@@ -118,9 +118,11 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	return (
 		<NodeViewWrapper contentEditable={false} style={{ textAlign: display.align }} className={cn("mb-4", countdown && "rounded-lg border p-3")}>
 			{countdown ? offer : (
-				<div className="relative inline-flex max-w-full items-start gap-2 rounded-lg border border-dashed align-top" style={padding}>
-					<Scissors aria-hidden="true" className="absolute -top-2.5 left-2 size-5 rounded-full border bg-background p-0.5 text-muted-foreground" />
-					{offer}
+				<div className="inline-flex max-w-full items-start gap-2 align-top">
+					<div className="relative min-w-0 rounded-lg border border-dashed" style={padding}>
+						<Scissors aria-hidden="true" className="absolute -top-2.5 left-2 size-5 rounded-full border bg-background p-0.5 text-muted-foreground" />
+						{offer}
+					</div>
 					{node.attrs.code && <ButtonCopy value={node.attrs.code} label="Copy code" symbol={DISCOUNT_COPY_SYMBOL} />}
 				</div>
 			)}

@@ -337,7 +337,7 @@ export default function WritingPage() {
 			<p>
 				Choose Discount to add a fixed promo code. Click the coupon to open its settings on the right. Changes apply automatically.
 				Drag the text size, horizontal padding and vertical padding icons, or click an icon to enter a value.
-				The dashed border fits the code, label and copy icon. Set the code and label colors separately. Readers can use the copy icon beside the code to open the clipboard page.
+				The dashed border fits the code and label, with a rounded copy button beside it. Set the code and label colors separately. Readers can use the copy icon beside the code to open the clipboard page.
 			</p>
 
 			<h2 id="preview">Preview and test emails</h2>

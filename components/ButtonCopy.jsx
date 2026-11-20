@@ -39,7 +39,7 @@ export default function ButtonCopy({ value, label = "Copy", hasLabel = false, sy
 			<TooltipTrigger asChild>
 				<Button
 					type="button"
-					variant="ghost"
+					variant={symbol ? "outline" : "ghost"}
 					size={symbol ? "icon-lg" : "icon-sm"}
 					onClick={copy}
 					aria-label={label}

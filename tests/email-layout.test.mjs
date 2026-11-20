@@ -133,9 +133,9 @@ test("countdown and static discount blocks render from section content", async (
 	assert.match(sent.html, new RegExp(`src="https://example.com/api/countdown/${deadline}\\?days=0&amp;seconds=1&amp;size=32"`));
 	assert.match(sent.html, /Ends Jan 1, 2030/);
 	assert.match(sent.text, /SAVE&20/);
-	assert.match(sent.html, /text-align:right;">\s*<div style="display:inline-block;[^"]*padding:0px 24px;border:1px dashed/);
+	assert.match(sent.html, /text-align:right;">\s*<table[^>]*><tr>\s*<td valign="top"><div style="[^"]*padding:0px 24px;border:1px dashed/);
 	assert.match(sent.html, /color:#ac12ff;font-size:40px;/);
-	assert.match(sent.html, /<span style="color:#123abc;">Summer sale<\/span>[\s\S]*<td[^>]+><a[^>]+href="https:\/\/example.com\/copy-discount#SAVE%2620" aria-label="Copy code"[^>]*>⧉<\/a>/);
+	assert.match(sent.html, /<span style="color:#123abc;">Summer sale<\/span>\s*<\/div><\/td>\s*<td[^>]+><a[^>]+href="https:\/\/example.com\/copy-discount#SAVE%2620" aria-label="Copy code"[^>]*border-radius:10px;[^>]*>⧉<\/a>/);
 	assert.match(sent.html, /border-radius:50%;[^"]*font-size:15px;">✂︎<\/span>/);
 	assert.match(sent.text, /Summer sale/);
 	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
@@ -144,7 +144,7 @@ test("countdown and static discount blocks render from section content", async (
 test("offer styling rejects invalid alignment, size and color before drawing email", () => {
 	const html = '<div data-discount="" data-offer-align="justify" data-offer-size="99" data-offer-color="red" data-offer-padding-x="99" data-offer-padding-y="-1"><strong>CODE</strong><br><span></span></div>';
 	const sent = renderEmail({ format: "rich", html });
-	assert.match(sent.html, /text-align:center;">\s*<div style="display:inline-block;[^"]*padding:16px 16px;border:1px dashed/);
+	assert.match(sent.html, /text-align:center;">\s*<table[^>]*><tr>\s*<td valign="top"><div style="[^"]*padding:16px 16px;border:1px dashed/);
 	assert.match(sent.html, /<strong style="">CODE<\/strong>/);
 	assert.doesNotMatch(sent.html, /data-offer-|font-size:99px|color:red/);
 });
