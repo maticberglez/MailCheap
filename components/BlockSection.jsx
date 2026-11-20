@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, use, useEffect, useState } from "react";
+import { createContext, use, useEffect, useRef, useState } from "react";
 import { Node } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { ChevronDown, ChevronsUpDown, Copy, Globe, Mail, Plus, SquareSplitVertical, Ungroup, UsersRound } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Copy, Globe, Mail, Plus, SquareRoundCorner, SquareSplitVertical, Ungroup, UsersRound } from "lucide-react";
+import ControlEditorSize from "@/components/ControlEditorSize";
 import LinkHelp from "@/components/LinkHelp";
 import {
 	DropdownMenu,
@@ -17,7 +18,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { reshapeSection } from "@/lib/editor-columns";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
@@ -32,6 +32,7 @@ import {
 	readSectionRule,
 	writeSectionRule,
 } from "@/lib/sections";
+import { readSectionRadius, SECTION_RADIUS_MAX } from "@/lib/section-style";
 import { cn } from "@/lib/utils";
 
 // What the issue's sections pick from, which the campaign's page gives (components/FormCampaign.jsx): the newsletter's
@@ -52,6 +53,7 @@ const SECTION_CONTENT = "(paragraph | heading | blockquote | bulletList | ordere
 // its blocks, and a label saying who and where, which opens its settings. Picking readers makes it email only, as the
 // website doesn't know who's reading; back on the website, every visitor sees it. One just made opens its settings.
 export default function BlockSection({ node, updateAttributes, editor, getPos }) {
+	const sectionView = useRef(null);
 	const context = use(SectionsContext);
 	const segments = context?.segments ?? [];
 	const [isOpen, setIsOpen] = useState(() => Boolean(node.attrs.isNew));
@@ -73,6 +75,9 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	const mobile = columns?.attrs.mobile === "1" ? "1" : "same";
 	const colors = Object.fromEntries(["light", "dark"].filter((mode) => /^#[0-9a-f]{6}$/i.test(node.attrs[mode] ?? ""))
 		.map((mode) => [`--section-${mode}-bg`, node.attrs[mode]]));
+
+	const radius = readSectionRadius(node.attrs.radius);
+	if (radius !== null) colors["--section-radius"] = `${radius}px`;
 
 	function setLayout(count, stack) {
 		const pos = getPos();
@@ -132,8 +137,9 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	return (
 		<NodeViewWrapper
 			data-section-view=""
+			ref={sectionView}
 			style={colors}
-			className={cn("my-8 rounded-xl border border-dashed px-4 pt-3 pb-1", hasProblem ? "border-destructive/50" : "border-foreground/20")}
+			className={cn("my-8 border border-dashed px-4 pt-3 pb-1", hasProblem ? "border-destructive/50" : "border-foreground/20")}
 		>
 			<div contentEditable={false} className="mb-3 flex min-w-0">
 				<Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -155,43 +161,41 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 					</PopoverTrigger>
 					<PopoverContent
 						align="start"
-						className="w-80 p-0"
+						className="w-[min(26rem,calc(100vw-2rem))] p-0"
 						onCloseAutoFocus={(event) => {
 							event.preventDefault();
 							editor.commands.focus();
 						}}
 					>
-						<div className="grid grid-cols-2 gap-2 px-3 pt-3">
-							<div className="grid gap-1 text-xs">
-								<span>Desktop columns</span>
-								<Select value={String(desktop)} onValueChange={(value) => setLayout(Number(value), columns?.attrs.mobile)}>
-									<SelectTrigger size="sm" aria-label="Desktop columns" className="w-full"><SelectValue /></SelectTrigger>
-									<SelectContent position="popper">
-										{[1, 2, 3, ...(desktop === 4 ? [4] : [])].map((count) => <SelectItem key={count} value={String(count)}>{count}</SelectItem>)}
-									</SelectContent>
-								</Select>
+						<div className="grid gap-4 p-4">
+							<h2 className="text-base font-semibold">Section settings</h2>
+							<SectionChoices label="Desktop columns" value={desktop}
+								options={[1, 2, 3, ...(desktop === 4 ? [4] : [])].map((value) => ({ value, label: value }))}
+								onChange={(value) => setLayout(value, columns?.attrs.mobile)}
+							/>
+							{desktop > 1 && <SectionChoices label="Mobile columns" value={mobile} onChange={setMobileLayout}
+								options={[{ value: "1", label: "One column" }, { value: "same", label: "Same as desktop" }]}
+							/>}
+							<ControlEditorSize icon={SquareRoundCorner} label="Corner radius" min={0} max={SECTION_RADIUS_MAX} value={radius}
+								getFallback={() => parseFloat(getComputedStyle(sectionView.current).borderTopLeftRadius) || 0}
+								onChange={(value) => updateAttributes({ radius: value })}
+								onPreview={(value) => {
+									const style = sectionView.current?.style;
+									if (value == null) style?.removeProperty("--drag-radius");
+									else style?.setProperty("--drag-radius", `${value}px`);
+								}}
+							/>
+							<div className="grid grid-cols-2 gap-2">
+								{["light", "dark"].map((mode) => (
+									<div key={mode} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background p-2 text-xs">
+										<label className="flex cursor-pointer items-center gap-2">
+											<input className="size-7 cursor-pointer" type="color" value={node.attrs[mode] ?? (mode === "light" ? "#ffffff" : "#18181b")} onChange={(event) => updateAttributes({ [mode]: event.target.value })} />
+											{mode === "light" ? "Light background" : "Dark background"}
+										</label>
+										{node.attrs[mode] && <button type="button" className="text-muted-foreground underline" onClick={() => updateAttributes({ [mode]: null })}>Clear</button>}
+									</div>
+								))}
 							</div>
-							<div className="grid gap-1 text-xs">
-								<span>Mobile columns</span>
-								<Select value={desktop === 1 ? "1" : mobile} disabled={desktop === 1} onValueChange={setMobileLayout}>
-									<SelectTrigger size="sm" aria-label="Mobile columns" className="w-full"><SelectValue /></SelectTrigger>
-									<SelectContent position="popper">
-										<SelectItem value="1">1</SelectItem>
-										<SelectItem value="same">Same as desktop</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-						<div className="flex gap-3 px-3 pt-3">
-							{["light", "dark"].map((mode) => (
-								<div key={mode} className="grid gap-1 text-xs">
-									<label className="flex items-center gap-1.5">
-										{mode === "light" ? "Light background" : "Dark background"}
-										<input type="color" value={node.attrs[mode] ?? (mode === "light" ? "#ffffff" : "#18181b")} onChange={(event) => updateAttributes({ [mode]: event.target.value })} />
-									</label>
-									{node.attrs[mode] && <button type="button" className="underline" onClick={() => updateAttributes({ [mode]: null })}>Clear</button>}
-								</div>
-							))}
 						</div>
 						<SettingsSection rule={rule} isDeleted={isDeleted} onChange={change} onAddOpposite={addOpposite} onRemove={remove} onDuplicate={duplicate} />
 					</PopoverContent>
@@ -199,6 +203,22 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 			</div>
 			<NodeViewContent className="[&_[data-node-view-content-react]>:first-child]:mt-0" />
 		</NodeViewWrapper>
+	);
+}
+
+function SectionChoices({ label, value, options, onChange }) {
+	return (
+		<fieldset className="grid gap-2">
+			<legend className="mb-2 text-sm font-medium">{label}</legend>
+			<div className="flex gap-1 rounded-lg bg-muted p-1">
+				{options.map((item) => (
+					<button key={item.value} type="button" aria-pressed={item.value === value}
+						onClick={() => { if (item.value !== value) onChange(item.value); }}
+						className="h-9 flex-1 rounded-md px-2 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-xs"
+					>{item.label}</button>
+				))}
+			</div>
+		</fieldset>
 	);
 }
 
@@ -418,6 +438,7 @@ export const Section = Node.create({
 			where: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-where") },
 			light: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-light-bg") },
 			dark: { default: null, rendered: false, parseHTML: (element) => element.getAttribute("data-dark-bg") },
+			radius: { default: null, rendered: false, parseHTML: (element) => readSectionRadius(element.getAttribute("data-section-radius")) },
 			isNew: { default: false, rendered: false, parseHTML: () => false },
 		};
 	},
@@ -429,7 +450,7 @@ export const Section = Node.create({
 	renderHTML({ node }) {
 		const { show, hide, where, light, dark } = node.attrs;
 		const attributes = { "data-section": "", ...(show !== null && { "data-show": show }), ...(hide !== null && { "data-hide": hide }) };
-		return ["section", { ...attributes, ...(where !== null && { "data-where": where }), "data-light-bg": light, "data-dark-bg": dark }, 0];
+		return ["section", { ...attributes, ...(where !== null && { "data-where": where }), "data-light-bg": light, "data-dark-bg": dark, "data-section-radius": readSectionRadius(node.attrs.radius) }, 0];
 	},
 
 	addNodeView() {

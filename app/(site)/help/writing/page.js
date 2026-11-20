@@ -349,12 +349,12 @@ export default function WritingPage() {
 			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
 			<h2 id="email-layout">Email layout</h2>
 			<p>
-				Open a section&apos;s settings to choose one, two or three desktop columns and separate light and dark backgrounds.
+				Open a section&apos;s settings to choose one, two or three desktop columns and separate light and dark backgrounds. Drag the corner radius icon to round the section, or click it to type a value.
 				For a section with multiple columns, choose one mobile column to stack them on phones, or keep the desktop layout.
 				Stacking depends on the reader&apos;s email app. Reducing the column count keeps the blocks in order.
 			</p>
 			<p>
-				Select a button and choose Button style to set its corner radius, width and height in pixels. Leave a field empty
+				Select a button and choose Button style. Drag the corner radius, width or height icon to resize it, or click the icon to type a value. Clear a field
 				to use the email theme&apos;s default sizing.
 			</p>
 

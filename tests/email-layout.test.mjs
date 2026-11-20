@@ -47,3 +47,20 @@ test("rich emails render section backgrounds, opted-in mobile stacking, and boun
 	assert.match(invalid, /display:inline-block;padding:12px 24px/);
 	assert.doesNotMatch(invalid, /email-stack-columns/);
 });
+
+test("section radius survives the editor, web sanitizer and email rendering", async () => {
+	const { renderIssueBody } = await import("../lib/archive-content.js");
+	const schema = getSchema([StarterKit, Section, HtmlBlock, ImageAligned, ButtonBlock, Callout, Columns, Column]);
+	for (const radius of [0, 24, 101, "9; color:red"]) {
+		const node = schema.nodes.section.createChecked({ radius, light: "#abcdef", dark: "#123456" }, schema.nodes.paragraph.create());
+		const [, attributes] = schema.nodes.section.spec.toDOM(node);
+		const valid = radius === 0 || radius === 24;
+		assert.equal(attributes["data-section-radius"], valid ? radius : null);
+		const source = `<section data-section="" data-light-bg="#abcdef" data-dark-bg="#123456" data-section-radius="${radius}"><p>Content</p></section>`;
+		const web = renderIssueBody({ format: "rich", html: source }).html;
+		const email = renderEmail({ format: "rich", html: forEmail(source) }).html;
+		assert.equal(web.includes(` data-section-radius="${radius}"`), valid);
+		assert.equal(email.includes(`background-color:#abcdef;border-radius:${radius}px;overflow:hidden;`), valid);
+		assert.match(email, /class="section-bg-123456"/);
+	}
+});

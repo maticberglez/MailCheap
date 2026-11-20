@@ -843,6 +843,13 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
     padding-inline: var(--button-padding-inline, 1.5rem);
   }
 
+  &.tiptap [data-button] > span {
+    width: var(--drag-width, var(--button-width, auto));
+    border-radius: var(--drag-radius, var(--button-radius, var(--radius)));
+    padding-block: calc((var(--drag-height, var(--button-height, 44px)) - 20px) / 2);
+    padding-inline: var(--drag-padding-inline, var(--button-padding-inline, 1.5rem));
+  }
+
   & [data-button] > a:hover {
     background: color-mix(in oklab, var(--primary) 80%, transparent);
   }
@@ -1082,6 +1089,12 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
 
 [data-section-view] {
   background-color: var(--section-light-bg, transparent);
+  border-radius: var(--drag-radius, var(--section-radius, var(--radius-xl)));
+}
+
+.prose-issue [data-section-radius] {
+  border-radius: attr(data-section-radius px, 0px);
+  overflow: hidden;
 }
 
 .dark [data-section-view],

@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { BadgeCheck, CornerDownLeft, Link, Mail, SlidersHorizontal, Trash2 } from "lucide-react";
+import { BadgeCheck, CornerDownLeft, Link, Mail, MoveHorizontal, MoveVertical, SlidersHorizontal, SquareRoundCorner, Trash2 } from "lucide-react";
+import ControlEditorSize from "@/components/ControlEditorSize";
 import ImageFavicon from "@/components/ImageFavicon";
 import { ButtonFormat } from "@/components/MenuFormat";
 import { ALIGNMENTS } from "@/components/MenuImage";
-import { BUTTON_DIMENSIONS, isButtonLink, readButtonDimension } from "@/lib/buttons";
+import { BUTTON_DIMENSIONS, isButtonLink } from "@/lib/buttons";
 import { findButton } from "@/lib/editor-button";
 import { deleteBlock } from "@/lib/editor-undo-delete";
 import { formatLinkUrl, normalizeUrl } from "@/lib/links";
@@ -67,6 +68,18 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 			.run();
 	}
 
+	function buttonElement() {
+		const found = findButton(editor.state);
+		return found && editor.view.nodeDOM(found.pos)?.firstElementChild;
+	}
+
+	function measuredSize(key) {
+		const element = buttonElement();
+		if (!element) return 0;
+		if (key === "radius") return parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0;
+		return key === "width" ? element.offsetWidth : element.offsetHeight;
+	}
+
 	function applyLink(event) {
 		event.preventDefault();
 		change({ href: normalizeUrl(new FormData(event.currentTarget).get("href")) });
@@ -120,24 +133,27 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 						</ButtonFormat>
 					</form>
 				) : isStyling ? (
-					<form className="grid w-64 grid-cols-3 gap-2 p-2" onSubmit={(event) => {
-						event.preventDefault();
-						const fields = new FormData(event.currentTarget);
-						change(Object.fromEntries(Object.keys(BUTTON_DIMENSIONS).map((key) => [key, readButtonDimension(key, fields.get(key))])));
-						setIsStyling(false);
-					}}>
-						{Object.entries(BUTTON_DIMENSIONS).map(([key, { label, min, max }]) => (
-							<label key={key} className="grid gap-1 text-xs">
-								{label}
-								<input name={key} type="number" min={min} max={max} defaultValue={button?.[key] ?? ""} placeholder="Auto"
-									className="h-8 min-w-0 rounded-md border bg-background px-2 text-sm" />
-							</label>
-						))}
-						<div className="col-span-3 flex justify-end gap-2">
-							<ButtonFormat label="Cancel style" onClick={() => { setIsStyling(false); editor.commands.focus(); }}>Cancel</ButtonFormat>
-							<ButtonFormat label="Apply style" type="submit"><CornerDownLeft /></ButtonFormat>
+					<div className="grid w-64 gap-2 p-3">
+						<div className="flex items-center justify-between">
+							<span className="px-1 text-sm font-medium">Button style</span>
+							<button type="button" className="h-8 rounded-lg px-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+								onClick={(event) => { event.currentTarget.focus(); setIsStyling(false); editor.commands.focus(); }}>Done</button>
 						</div>
-					</form>
+						{Object.entries(BUTTON_DIMENSIONS).map(([key, props]) => (
+							<ControlEditorSize key={key} {...props} icon={SIZE_ICONS[key]} value={button?.[key]}
+								getFallback={() => measuredSize(key)}
+								onChange={(value) => {
+									const found = findButton(editor.state);
+									if (found && found.node.attrs[key] !== value) editor.view.dispatch(editor.state.tr.setNodeAttribute(found.pos, key, value));
+								}}
+								onPreview={(value) => {
+									const style = buttonElement()?.style;
+									style?.setProperty(`--drag-${key}`, value == null ? "" : `${value}px`);
+									if (key === "width") style?.setProperty("--drag-padding-inline", value == null ? "" : "8px");
+								}}
+							/>
+						))}
+					</div>
 				) : (
 					<>
 						{ALIGNMENTS.map(({ value, label, icon: Icon }) => (
@@ -223,4 +239,5 @@ function keepFocus(event) {
 	if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
 }
 
+const SIZE_ICONS = { radius: SquareRoundCorner, width: MoveHorizontal, height: MoveVertical };
 const MENU_KEY = "buttonMenu";
