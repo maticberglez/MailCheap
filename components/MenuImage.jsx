@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEditorState } from "@tiptap/react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { AlignCenter, AlignLeft, AlignRight, Copy, CornerDownLeft, Link2, MoveVertical, SquareRoundCorner, Trash2 } from "lucide-react";
+import ButtonEditorLink from "@/components/ButtonEditorLink";
 import { ButtonFormat } from "@/components/MenuFormat";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { deleteBlock } from "@/lib/editor-undo-delete";
@@ -200,9 +201,13 @@ export default function MenuImage({ editor }) {
 						<ButtonFormat label={target.alt ? `Alt text: ${target.alt}` : "Add alt text"} isActive={Boolean(target.alt)} onClick={() => editField("alt")}>
 							<span className="text-xs font-semibold">Alt</span>
 						</ButtonFormat>
-						<ButtonFormat label="Image link" isActive={Boolean(target.link)} onClick={() => editField("link")}>
-							<Link2 />
-						</ButtonFormat>
+						{target.link ? (
+							<ButtonEditorLink href={target.link} label="Image link" onClick={() => editField("link")}
+								className="max-sm:size-8 max-sm:justify-center max-sm:px-0 max-sm:[&>span]:hidden"
+							/>
+						) : (
+							<ButtonFormat label="Image link" onClick={() => editField("link")}><Link2 /></ButtonFormat>
+						)}
 						<ButtonFormat label="Corner radius" style={{ cursor: "move", touchAction: "none" }}
 							onPointerDown={(event) => adjustmentEvents("radius").onPointerDown(event)}
 							onPointerMove={(event) => adjustmentEvents("radius").onPointerMove(event)}

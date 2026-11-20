@@ -75,3 +75,15 @@ test("templates with campaign audience rules can only replace email bodies in co
 		assert.equal(canUseEditorTemplate(template, campaign), true);
 	}
 });
+
+test("the editor link preview renders the destination favicon and a shortened URL", async () => {
+	const { createElement } = await import("react");
+	const { renderToStaticMarkup } = await import("react-dom/server");
+	const { default: ButtonEditorLink } = await import("../components/ButtonEditorLink.jsx");
+	const html = renderToStaticMarkup(createElement(ButtonEditorLink, {
+		href: "https://example.com/story", label: "Image link",
+	}));
+	assert.match(html, /aria-label="Image link"/);
+	assert.match(html, /s2\/favicons\?domain=example\.com/);
+	assert.match(html, /<span class="truncate">example\.com\/story<\/span>/);
+});

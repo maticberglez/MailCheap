@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { BadgeCheck, CornerDownLeft, Link, Mail, MoveHorizontal, MoveVertical, SlidersHorizontal, SquareRoundCorner, Trash2 } from "lucide-react";
+import { BadgeCheck, CornerDownLeft, MoveHorizontal, MoveVertical, SlidersHorizontal, SquareRoundCorner, Trash2 } from "lucide-react";
 import ControlEditorSize from "@/components/ControlEditorSize";
-import ImageFavicon from "@/components/ImageFavicon";
+import ButtonEditorLink from "@/components/ButtonEditorLink";
 import { ButtonFormat } from "@/components/MenuFormat";
 import { ALIGNMENTS } from "@/components/MenuImage";
-import { BUTTON_DIMENSIONS, isButtonLink } from "@/lib/buttons";
+import { BUTTON_DIMENSIONS } from "@/lib/buttons";
 import { findButton } from "@/lib/editor-button";
 import { deleteBlock } from "@/lib/editor-undo-delete";
-import { formatLinkUrl, normalizeUrl } from "@/lib/links";
+import { normalizeUrl } from "@/lib/links";
 
 // The toolbar of the button being written in (lib/editor-button.js), above it: where it sits in the column, where it
 // goes, and a way to delete it. Its link opens a field, as the format menu's does, and so do Enter in the button's text
@@ -162,7 +162,7 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 							</ButtonFormat>
 						))}
 						<span aria-hidden className="mx-0.5 h-5 w-px bg-border" />
-						{isAction ? <LabelActionLink label={actionLink.label} /> : <ButtonLink href={button?.href} onClick={() => onEditLink(true)} />}
+						{isAction ? <LabelActionLink label={actionLink.label} /> : <ButtonEditorLink href={button?.href} onClick={() => onEditLink(true)} />}
 						<ButtonFormat label="Button style" onClick={() => setIsStyling(true)}><SlidersHorizontal /></ButtonFormat>
 						<ButtonFormat label="Delete button" onClick={remove}>
 							<Trash2 />
@@ -171,24 +171,6 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 				)}
 			</div>
 		</BubbleMenu>
-	);
-}
-
-// Where the button goes, with its site's icon, or a way to add it.
-function ButtonLink({ href, onClick }) {
-	const isMail = /^mailto:/i.test(href ?? "");
-	const host = isButtonLink(href) && !isMail ? getHost(href) : null;
-	const text = !isButtonLink(href) ? "Add a link" : isMail ? href.slice("mailto:".length) : formatLinkUrl(href);
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			title={isButtonLink(href) ? `Link: ${href}` : "Add a link"}
-			className="flex h-8 max-w-40 min-w-0 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground sm:max-w-56"
-		>
-			{host ? <ImageFavicon domain={host} size={14} /> : isMail ? <Mail className="size-4 shrink-0" /> : <Link className="size-4 shrink-0" />}
-			<span className="truncate">{text}</span>
-		</button>
 	);
 }
 
@@ -208,14 +190,6 @@ function LabelActionLink({ label }) {
 function readButton(state) {
 	const found = findButton(state);
 	return found?.node.attrs ?? null;
-}
-
-function getHost(href) {
-	try {
-		return new URL(href).hostname;
-	} catch {
-		return null;
-	}
 }
 
 function shouldShowMenu({ editor, element, view, state }) {
