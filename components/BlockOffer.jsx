@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Scissors } from "lucide-react";
+import { CaseSensitive, MoveHorizontal, MoveVertical, Scissors } from "lucide-react";
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import ControlEditorSize from "@/components/ControlEditorSize";
+import { ALIGNMENTS } from "@/components/MenuImage";
 import ButtonCopy from "@/components/ButtonCopy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { normalizeHexColor } from "@/lib/colors";
-import { offerStyleData, OFFER_SIZES, readOfferStyle } from "@/lib/offer-style";
+import { offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
 import { cn } from "@/lib/utils";
 import { countdownDeadlineText, countdownText, readCountdownDeadline } from "@/lib/countdown";
 
@@ -21,6 +23,10 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	const [now, setNow] = useState(() => Date.now());
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState("");
+	const [draftStyle, setDraftStyle] = useState(null);
+	const [dragStyle, setDragStyle] = useState(null);
+	const display = { ...style, ...draftStyle, ...dragStyle };
+	const padding = { paddingInline: display["padding-x"] ?? OFFER_PADDING.default, paddingBlock: display["padding-y"] ?? OFFER_PADDING.default };
 
 	useEffect(() => {
 		if (!deadline) return;
@@ -30,15 +36,23 @@ function BlockOffer({ node, updateAttributes, editor }) {
 
 	const label = countdown ? "Countdown" : "Discount";
 	return (
-		<NodeViewWrapper contentEditable={false} style={{ color: style.color ?? undefined, textAlign: style.align }}
-			className={cn("relative mb-4 rounded-lg border p-3", !countdown && "border-dashed")}>
-			{!countdown && <Scissors aria-hidden="true" className="absolute -top-2.5 left-3 size-5 bg-background p-0.5 text-muted-foreground" />}
-			<Popover open={open} onOpenChange={(next) => { setOpen(next); setError(""); }}>
+		<NodeViewWrapper contentEditable={false} style={{ color: style.color ?? undefined, textAlign: display.align }}
+			className={cn("mb-4", countdown && "rounded-lg border p-3")}>
+			<Popover open={open} onOpenChange={(next) => {
+				setOpen(next);
+				setError("");
+				setDraftStyle(null);
+				setDragStyle(null);
+			}}>
 				<PopoverTrigger asChild>
-					<button type="button" disabled={!editor.isEditable} className="grid w-full cursor-pointer gap-1 rounded-lg px-2 py-1 text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring" style={{ textAlign: "inherit" }}>
-						<strong style={{ color: "inherit", fontSize: style.size ?? undefined }}>{countdown ? (deadline ? countdownText(deadline, now, node.attrs) : "Set countdown deadline") : node.attrs.code || "Set discount code"}</strong>
+					<button type="button" disabled={!editor.isEditable} className={cn("cursor-pointer gap-1 rounded-lg text-inherit outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
+							countdown ? "grid w-full px-2 py-1" : "relative inline-flex max-w-full flex-col break-words border border-dashed align-top")}
+						style={{ textAlign: "inherit", ...(countdown ? {} : padding) }}
+					>
+						{!countdown && <Scissors aria-hidden="true" className="absolute -top-2 left-2 size-4 bg-background p-0.5 text-muted-foreground" />}
+						<strong className="min-w-0" style={{ color: "inherit", fontSize: display.size ?? undefined }}>{countdown ? (deadline ? countdownText(deadline, now, node.attrs) : "Set countdown deadline") : node.attrs.code || "Set discount code"}</strong>
 						{countdown ? deadline && <span className="text-sm text-muted-foreground">{countdownDeadlineText(deadline)}</span>
-							: <span className="text-sm text-muted-foreground" style={{ color: style.color ?? undefined }}>{node.attrs.label}</span>}
+							: <span className="min-w-0 text-sm text-muted-foreground" style={{ color: style.color ?? undefined }}>{node.attrs.label}</span>}
 					</button>
 				</PopoverTrigger>
 				<PopoverContent>
@@ -48,7 +62,9 @@ function BlockOffer({ node, updateAttributes, editor }) {
 						const hex = String(fields.get("color") ?? "").trim();
 						const color = normalizeHexColor(hex);
 						if (hex && !color) { setError("Enter a valid hex color."); return; }
-						const styling = readOfferStyle({ align: fields.get("align"), color, size: fields.get("size") });
+						const styling = readOfferStyle(countdown
+							? { align: fields.get("align"), color, size: fields.get("size") }
+							: { ...style, ...draftStyle, color });
 						if (countdown) {
 							const next = readCountdownDeadline(new Date(fields.get("deadline")).valueOf());
 							if (!next) { setError("Enter a valid deadline."); return; }
@@ -60,6 +76,8 @@ function BlockOffer({ node, updateAttributes, editor }) {
 							updateAttributes({ ...styling, code, label: String(fields.get("label")).trim() });
 						}
 						setOpen(false);
+						setDraftStyle(null);
+						setDragStyle(null);
 					}}>
 						<h3 className="font-semibold">{label}</h3>
 						{countdown ? (
@@ -78,24 +96,45 @@ function BlockOffer({ node, updateAttributes, editor }) {
 								<label className="grid gap-1 text-sm">Label<Input name="label" maxLength={120} defaultValue={node.attrs.label} /></label>
 							</>
 						)}
-						<label className="grid gap-1 text-sm">Alignment
-							<Select name="align" defaultValue={style.align}>
-								<SelectTrigger aria-label="Alignment" className="w-full"><SelectValue /></SelectTrigger>
-								<SelectContent position="popper">
-									<SelectItem value="left">Left</SelectItem>
-									<SelectItem value="center">Center</SelectItem>
-									<SelectItem value="right">Right</SelectItem>
-								</SelectContent>
-							</Select>
+						{countdown ? (
+							<>
+								<label className="grid gap-1 text-sm">Alignment
+									<Select name="align" defaultValue={style.align}>
+										<SelectTrigger aria-label="Alignment" className="w-full"><SelectValue /></SelectTrigger>
+										<SelectContent position="popper">
+											{ALIGNMENTS.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+										</SelectContent>
+									</Select>
+								</label>
+								<label className="grid gap-1 text-sm">Text size (px)
+									<Input name="size" type="number" min={OFFER_SIZES.min} max={OFFER_SIZES.max} placeholder="Default" defaultValue={style.size ?? ""} className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+								</label>
+							</>
+						) : (
+							<>
+								<fieldset className="grid gap-1 text-sm">
+									<legend>Alignment</legend>
+									<div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+										{ALIGNMENTS.map(({ value, label, icon: Icon }) => (
+											<Button key={value} type="button" aria-label={label} aria-pressed={display.align === value} title={label}
+												variant="ghost" size="sm" className="aria-pressed:bg-background aria-pressed:shadow-xs"
+												onClick={() => setDraftStyle((current) => ({ ...current, align: value }))}
+											><Icon aria-hidden="true" /></Button>
+										))}
+									</div>
+								</fieldset>
+								{DISCOUNT_DIMENSIONS.map(({ key, icon, label, min, max, fallback }) => (
+									<ControlEditorSize key={key} icon={icon} label={label} min={min} max={max}
+										value={display[key]} getFallback={() => fallback}
+										onChange={(value) => setDraftStyle((current) => ({ ...current, [key]: value }))}
+										onPreview={(value) => setDragStyle(value == null ? null : { [key]: value })}
+									/>
+								))}
+							</>
+						)}
+						<label className="grid gap-1 text-sm">Text color
+							<Input name="color" maxLength={7} placeholder="#000000" defaultValue={style.color ?? ""} />
 						</label>
-						<div className="grid grid-cols-2 gap-2">
-							<label className="grid gap-1 text-sm">Text size (px)
-								<Input name="size" type="number" min={OFFER_SIZES.min} max={OFFER_SIZES.max} placeholder="Default" defaultValue={style.size ?? ""} className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-							</label>
-							<label className="grid gap-1 text-sm">Text color
-								<Input name="color" maxLength={7} placeholder="#000000" defaultValue={style.color ?? ""} />
-							</label>
-						</div>
 						{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 						<Button type="submit">Apply</Button>
 					</form>
@@ -106,7 +145,13 @@ function BlockOffer({ node, updateAttributes, editor }) {
 	);
 }
 
-const offerAttributes = Object.fromEntries(["align", "color", "size"].map((key) => [key, {
+const DISCOUNT_DIMENSIONS = [
+	{ key: "size", icon: CaseSensitive, label: "Text size", ...OFFER_SIZES, fallback: 17 },
+	{ key: "padding-x", icon: MoveHorizontal, label: "Horizontal padding", ...OFFER_PADDING, fallback: OFFER_PADDING.default },
+	{ key: "padding-y", icon: MoveVertical, label: "Vertical padding", ...OFFER_PADDING, fallback: OFFER_PADDING.default },
+];
+
+const offerAttributes = Object.fromEntries(OFFER_STYLE_KEYS.map((key) => [key, {
 	default: key === "align" ? "center" : null,
 	rendered: false,
 	parseHTML: (element) => readOfferStyle({ [key]: element.getAttribute(`data-offer-${key}`) })[key],

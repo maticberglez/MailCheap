@@ -334,6 +334,11 @@ export default function WritingPage() {
 				Choose Countdown from the slash menu and click the block to set a deadline, text size, color and alignment. Choose whether to show days and seconds. The timer skips units with no time left and updates when the mail app loads the image.
 				Add fallback text with the deadline for readers who block images.
 			</p>
+			<p>
+				Choose Discount to add a fixed promo code. Click the coupon to change its alignment, label and color.
+				Drag the text size, horizontal padding and vertical padding icons, or click an icon to enter a value.
+				The dashed border fits the code and label. Readers can use Copy code to open the clipboard page.
+			</p>
 
 			<h2 id="preview">Preview and test emails</h2>
 			<p>
