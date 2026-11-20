@@ -335,7 +335,7 @@ export default function WritingPage() {
 				Add fallback text with the deadline for readers who block images.
 			</p>
 			<p>
-				Choose Discount to add a fixed promo code. Click the coupon to change its alignment, label and color.
+				Choose Discount to add a fixed promo code. Click the coupon to open its settings on the right. Changes apply automatically.
 				Drag the text size, horizontal padding and vertical padding icons, or click an icon to enter a value.
 				The dashed border fits the code and label. Readers can use Copy code to open the clipboard page.
 			</p>
