@@ -7,7 +7,9 @@ import FileHandler from "@tiptap/extension-file-handler";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
 import { HtmlBlock, editHtmlBlock } from "@/components/BlockHtml";
-import { Section, SectionsContext } from "@/components/BlockSection";
+import { EmailDocument, EmailSection, Section, insertEmailSection } from "@/components/BlockSection";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import DialogContactFields from "@/components/DialogContactFields";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import GutterProblems from "@/components/GutterProblems";
@@ -46,9 +48,8 @@ const NO_TAGS = [];
 // the first place the issue has the words, and says whether it found it; append(block), which adds a block at the end;
 // getEditor(), for a team's draft to show others' changes and where they are (lib/editor-sync.js).
 // gutterRef: the positioned element around the editor's card, whose problems' dots sit beside it in the page's margin
-// (components/GutterProblems.jsx). sections: what the issue's sections pick from (components/BlockSection.jsx), its
-// segments a section without one is marked by; without them, as in the newsletter's own emails, the slash menu offers
-// no section. actionLink: the link the email's button keeps (components/MenuButton.jsx). minHeight: a min-h- class.
+// (components/GutterProblems.jsx). sectionSegments provides campaign segment IDs to validate previously saved visibility rules.
+// actionLink: the link the email's button keeps (components/MenuButton.jsx). minHeight: a min-h- class.
 export default function EditorRich({
 	ref,
 	gutterRef,
@@ -57,8 +58,8 @@ export default function EditorRich({
 	contactFields = NO_FIELDS,
 	onContactFieldsChange = () => {},
 	newsletter = null,
-	sections = null,
-	sectionLayouts = Boolean(sections),
+	sectionSegments = null,
+	sectionLayouts = false,
 	actionLink = null,
 	minHeight = MIN_HEIGHT,
 	templateScope = null,
@@ -71,13 +72,13 @@ export default function EditorRich({
 	// The block whose dot says what it's about, once brought into view.
 	const [pinned, setPinned] = useState(null);
 	const unpin = useCallback(() => setPinned(null), []);
-	const segments = sections?.segments;
-	const segmentIds = useMemo(() => (segments ?? []).map(({ id }) => id), [segments]);
+	const segmentIds = useMemo(() => (sectionSegments ?? []).map(({ id }) => id), [sectionSegments]);
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
 		extensions: [
 			StarterKit.configure({
+				document: sectionLayouts ? false : {},
 				heading: { levels: [1, 2, 3] },
 				codeBlock: false,
 				link: { openOnClick: false, defaultProtocol: "https" },
@@ -97,7 +98,7 @@ export default function EditorRich({
 			Column,
 			ButtonBlock.configure({ newsletter, onEditLink: () => setIsEditingButtonLink(true) }),
 			HtmlBlock.configure({ newsletter }),
-			Section,
+			...(sectionLayouts ? [EmailDocument, EmailSection] : [Section]),
 			BlockHandle,
 			UndoDelete,
 			MergeTags.configure({ contactFields }),
@@ -168,7 +169,9 @@ export default function EditorRich({
 		},
 		append: (block) => {
 			if (!editor || editor.isDestroyed) return;
-			editor.chain().insertContentAt(editor.state.doc.content.size, block).focus("end").scrollIntoView().run();
+			const doc = editor.state.doc;
+			const end = doc.content.size - (sectionLayouts ? 1 : 0);
+			editor.chain().insertContentAt(end, block).focus("end").scrollIntoView().run();
 		},
 		getEditor: () => (editor && !editor.isDestroyed ? editor : null),
 	}));
@@ -184,9 +187,16 @@ export default function EditorRich({
 	if (!editor) return <div className={minHeight} />;
 
 	return (
-		<SectionsContext value={sections}>
-			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sections)} />}
+		<>
+			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sectionSegments)} />}
 			<EditorContent editor={editor} className="relative" />
+			{sectionLayouts && (
+				<div className="flex justify-center px-4 pb-5">
+					<Button type="button" variant="outline" size="sm" onClick={() => {
+						insertEmailSection(editor.chain().focus(), true).run();
+					}}><Plus /> Add section</Button>
+				</div>
+			)}
 			<GutterProblems
 				editor={editor}
 				gutterRef={gutterRef}
@@ -223,7 +233,7 @@ export default function EditorRich({
 					}}
 				/>
 			</ProviderContactOptions>
-		</SectionsContext>
+		</>
 	);
 }
 

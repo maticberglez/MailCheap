@@ -8,7 +8,7 @@ import { formatNumber } from "@/lib/format";
 import { getHelpHref, getHelpPageMetadata } from "@/lib/help";
 import { getSignupScale } from "@/lib/plans";
 import { UNSUBSCRIBE_PLACEHOLDER } from "@/lib/render-email";
-import { MAX_SECTION_GROUPS, MAX_SECTIONS } from "@/lib/sections";
+import { MAX_SECTIONS } from "@/lib/sections";
 import { MAX_TEST_RECIPIENTS, OUTSIDE_TEST_ADDRESSES_PER_DAY, TESTS_PER_OUTSIDE_ADDRESS_PER_DAY } from "@/lib/test-email-rules";
 
 export const metadata = getHelpPageMetadata("writing");
@@ -279,53 +279,19 @@ export default function WritingPage() {
 				platform or a field you deleted, since it would go out as written.
 			</p>
 
-			<h2 id="sections">Sections for some readers</h2>
+			<h2 id="sections">Sections and blocks</h2>
 			<p>
-				A section shows part of an issue to some of your readers only, or only in your emails or only on your website. Everyone you
-				send the issue to still gets it: a reader a section isn&apos;t for gets the same email without it.
+				Your email is organized into sections. Each section holds blocks such as text, images and buttons.
+				Older drafts open with any loose blocks grouped into sections in their original order.
 			</p>
 			<p>
-				Select the text of the blocks you want in it, then click Who sees this, the dashed square at the end of the bar above them.
-				Or type <kbd>/</kbd>, pick Section under Sections and add blocks inside it. A dashed outline shows where the section starts and ends, and its label
-				says who sees it and where, like <strong>Only readers tagged “vip” · Email only</strong>, the tag or the segment in quotes.
-				Click the label to change them:
-			</p>
-			<ul>
-				<li>
-					<strong>Who sees this section</strong>: everyone, readers with a <Link href={getHelpHref("contacts", "tags")}>tag</Link>,
-					or readers in a <Link href={getHelpHref("contacts", "segments")}>segment</Link>, like your newest subscribers or those who
-					opened lately. Each one in the list shows how many of the readers you send the issue to it has, and the one you picked
-					shows it in parentheses, like Readers tagged “vip” (12). Everyone except them turns it around, for readers without the tag
-					or outside the segment. New segment, at the bottom of the list, or Add segments while you have none, makes one without
-					leaving the issue.
-				</li>
-				<li>
-					<strong>Show it in</strong>: email and web, email only or web only. Your website doesn&apos;t know who&apos;s reading, so
-					a section becomes email only once you pick its readers. Put it back on the web, and every visitor of your website sees it.
-				</li>
-			</ul>
-			<p>
-				Add a version for everyone else puts the opposite section right under it, for the readers this one leaves out, like a thank
-				you for your VIPs and an invitation for everyone else. Remove the section, keep its content puts its blocks back in the issue
-				for everyone.
-			</p>
-			<FigureHelp
-				src="/help/writing/section.webp"
-				alt="A section in the editor with its settings open: only readers tagged member, 12 of the issue's readers, in emails only."
-				caption="A section and who sees it"
-			/>
-			<p>
-				Each reader&apos;s sections are decided as their email goes out, with their tags and segments then. A section can hold{" "}
-				<Link href={getHelpHref("writing", "html")}>HTML blocks</Link> but not another section, and an HTML block&apos;s HTML
-				can&apos;t make one: put the section around the block. An issue holds {MAX_SECTIONS} sections naming {MAX_SECTION_GROUPS}{" "}
-				tags or segments at most. A segment
-				can&apos;t be deleted while a scheduled or sending issue has a section for it. In a draft, a section whose segment was
-				deleted gets a <Link href={getHelpHref("writing", "problems")}>red dot</Link> and holds the issue until you pick who sees it.
+				Click Add section below the email, or type <kbd>/</kbd> and choose Section to add one after the current section.
+				Click the Section label to change its columns, backgrounds or corner radius, or duplicate the section with its blocks.
+				A campaign can have up to {MAX_SECTIONS} sections.
 			</p>
 			<p>
-				The <Link href={getHelpHref("writing", "preview")}>preview</Link> shows the issue as each reader gets it. A test email has every
-				section an email can have, to check them all in your inbox, or those of the contact you send it as. Sections are for what
-				matters to each reader, not for secrets: a reader can forward their email.
+				Previously saved visibility rules still apply when previewing, publishing or sending a campaign. Use Preview to check
+				what each reader sees.
 			</p>
 
 			<h2 id="footer">The footer</h2>

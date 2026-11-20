@@ -24,7 +24,7 @@ import {
 	Timer,
 	UserRound,
 } from "lucide-react";
-import { isInSection } from "@/components/BlockSection";
+import { insertEmailSection } from "@/components/BlockSection";
 import IconField from "@/components/IconField";
 import { findMergeTagMatch, matchFields } from "@/lib/editor-merge-tags";
 import { FIELDS_TITLE, SLASH_ADD_FIELD, fitMenu, getSlashMenu, listSlashOptions, moveInSlashMenu } from "@/lib/editor-slash-menu";
@@ -253,7 +253,7 @@ function ChipAddField({ isSelected, onPoint, onPick }) {
 
 // Typing "/" at the start of a line or after a space opens the menu, but not in a button's text; the text after it
 // searches. contactFields: the account's fields, offered after the first name, as setEditorFields keeps them
-// (lib/editor-merge-tags.js). In a section, or without sections (withSections false), a section isn't offered.
+// (lib/editor-merge-tags.js). withSections enables adding a new layout section.
 // onAddField: Add a field was picked.
 export const SlashCommand = Extension.create({
 	name: "slashCommand",
@@ -265,9 +265,9 @@ export const SlashCommand = Extension.create({
 	},
 	addProseMirrorPlugins() {
 		const { storage, options } = this;
-		const getItems = (contactFields, state = null) => {
+		const getItems = (contactFields) => {
 			const items = getSlashItems(contactFields).filter((item) => (!item.isCountdown || options.onCountdown) && (!item.isColumnLayout || !options.withSections));
-			return options.withSections && !(state && isInSection(state)) ? items : items.filter((item) => !item.isSection);
+			return options.withSections ? items : items.filter((item) => !item.isSection);
 		};
 		return [
 			Suggestion({
@@ -275,7 +275,7 @@ export const SlashCommand = Extension.create({
 				char: "/",
 				// Rendered before it's first placed, so it's placed at its own height.
 				initialItems: getItems(options.contactFields),
-				items: ({ editor }) => getItems(storage.contactFields, editor.state),
+				items: () => getItems(storage.contactFields),
 				allow: ({ state, range }) => state.doc.resolve(range.from).parent.type.name !== "button",
 				command: ({ editor, range, props: item }) => {
 					runPick(editor, range, item);
@@ -542,13 +542,13 @@ const SLASH_ITEMS = [
 			content: Array.from({ length: index + 2 }, () => ({ type: "column", content: [{ type: "paragraph" }] })),
 		}),
 	})),
-	// Part of the issue for some readers, or for its emails or its website only (components/BlockSection.jsx).
+	// A new layout section beside the current one.
 	{
 		title: "Section",
-		keywords: "layout columns background mobile audience tag segment email only web only",
+		keywords: "layout columns background mobile",
 		icon: SquareDashed,
 		isSection: true,
-		run: (chain) => chain.wrapIn("section", { isNew: true }),
+		run: insertEmailSection,
 	},
 ];
 const FIRST_NAME = {

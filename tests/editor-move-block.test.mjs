@@ -97,3 +97,13 @@ test("a section moves as one block, and a block dragged next to one lands beside
 	assert.deepEqual(names(moved), ["[in onein two]", "one", "two"]);
 	assert.equal(moved.selection.node.type.name, "section", "with its blocks, still selected");
 });
+
+test("dragging or using the keyboard reorders blocks inside their section", () => {
+	const section = schema.node("section", null, [paragraph("one"), paragraph("two")]);
+	const doc = schema.node("doc", null, [paragraph("outside"), section]);
+	const start = doc.firstChild.nodeSize + 1;
+	const state = EditorState.create({ doc, selection: TextSelection.create(doc, start + 1) });
+	assert.deepEqual(blocks(state.apply(moveBlockTo(state, 0, 2, start))), ["outside", "twoone"]);
+	assert.deepEqual(blocks(state.apply(moveBlock(state, 1))), ["outside", "twoone"]);
+	assert.equal(moveBlock(state, -1), null);
+});

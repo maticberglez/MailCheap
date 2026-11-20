@@ -64,3 +64,47 @@ test("section radius survives the editor, web sanitizer and email rendering", as
 		assert.match(email, /class="section-bg-123456"/);
 	}
 });
+
+test("rich email documents wrap older loose blocks and keep existing section rules", async () => {
+	const { DOMParser } = await import("@tiptap/pm/model");
+	const { EmailDocument, EmailSection, insertEmailSection } = await import("../components/BlockSection.jsx");
+	const { EditorState, TextSelection } = await import("@tiptap/pm/state");
+	const schema = getSchema([
+		StarterKit.configure({ document: false }), EmailDocument, EmailSection, HtmlBlock, ButtonBlock,
+		Callout, ImageAligned, Columns, Column,
+	]);
+
+	function element(name, attributes, ...children) {
+		const node = {
+			nodeType: 1, nodeName: name.toUpperCase(), firstChild: children[0], childNodes: children,
+			getAttribute: (attribute) => attributes[attribute] ?? null,
+			matches(selector) {
+				const [tag, attribute] = selector.split("[");
+				return tag === name && (!attribute || Object.hasOwn(attributes, attribute.slice(0, -1)));
+			},
+		};
+		children.forEach((child, index) => {
+			child.parentNode = node;
+			child.nextSibling = children[index + 1];
+		});
+		return node;
+	}
+	const paragraph = (text) => element("p", {}, { nodeType: 3, nodeValue: text });
+	const doc = DOMParser.fromSchema(schema).parse(element("div", {},
+		paragraph("First"), paragraph("Second"),
+		element("section", { "data-section": "", "data-show": "tag:vip", "data-where": "email" }, paragraph("VIP")),
+		paragraph("Last"),
+	));
+	assert.deepEqual(doc.content.content.map((section) => section.textContent), ["FirstSecond", "VIP", "Last"]);
+	assert.ok(doc.content.content.every((section) => section.type.name === "section"));
+	assert.equal(doc.child(1).attrs.show, "tag:vip");
+	assert.equal(doc.child(1).attrs.where, "email");
+	assert.equal(schema.topNodeType.createAndFill().toString(), "doc(section(paragraph))");
+
+	const state = EditorState.create({ doc, selection: TextSelection.create(doc, 2) });
+	const tr = state.tr;
+	insertEmailSection({ command: (apply) => apply({ state, tr }) });
+	assert.deepEqual(tr.doc.content.content.map((section) => section.textContent), ["FirstSecond", "", "VIP", "Last"]);
+	assert.equal(tr.selection.$from.parent.type.name, "paragraph");
+	tr.doc.check();
+});
