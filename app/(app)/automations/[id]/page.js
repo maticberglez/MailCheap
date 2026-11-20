@@ -2,6 +2,8 @@ import AutomationDrafts from "@/components/AutomationDrafts";
 import { getAutomationEmailAddresses } from "@/lib/automation-email-addresses";
 import { requireRole } from "@/lib/selected-newsletter";
 
+import { serialize } from "@/lib/serialize";
+
 export const metadata = { title: "Automation" };
 
 export default async function AutomationPage({ params, searchParams }) {
@@ -11,5 +13,7 @@ export default async function AutomationPage({ params, searchParams }) {
 	const scope = `welcome-flow:${user.id}:${selected._id}`;
 	const [addresses, { node }] = await Promise.all([getAutomationEmailAddresses(account, user, selected), searchParams]);
 	return <AutomationDrafts key={`${scope}:${id}:${node ?? ""}`} scope={scope} draftId={id} selectedNodeId={typeof node === "string" ? node : null}
-		addresses={{ ...addresses, newsletterId: String(selected._id), testRecipient: user.email }} />;
+		addresses={serialize({ ...addresses, newsletterId: String(selected._id), testRecipient: user.email,
+			name: selected.name, imageUrl: selected.imageUrl, theme: selected.theme, postalAddress: selected.postalAddress, replyTo: selected.replyTo,
+		})} />;
 }

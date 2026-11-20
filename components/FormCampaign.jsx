@@ -38,6 +38,7 @@ import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
 import DialogSegment from "@/components/DialogSegment";
 import DialogSendTest from "@/components/DialogSendTest";
+import PanelEmailEditor from "@/components/PanelEmailEditor";
 import EditorRich from "@/components/EditorRich";
 import FooterEmail from "@/components/FooterEmail";
 import IconField from "@/components/IconField";
@@ -535,7 +536,7 @@ export default function FormCampaign({
 				)}
 
 				<section ref={writeRef} aria-label="Write" hidden={step !== "write"} className="relative">
-					<div className="overflow-hidden rounded-xl bg-card shadow-border animate-enter">
+					<PanelEmailEditor className="shadow-border animate-enter">
 						<div className="divide-y divide-border/60 border-b border-border/60">
 							<RowCampaign label="Subject">
 								<div className="flex min-w-0 items-center gap-1">
@@ -605,7 +606,7 @@ export default function FormCampaign({
 								{!isWebOnly && <FooterEmail newsletter={newsletter} />}
 							</>
 						)}
-					</div>
+					</PanelEmailEditor>
 					{collaboration && <OverlayCollaborators presence={presence} rootRef={writeRef} editorRef={editorRef} fieldRefs={fieldRefs} />}
 				</section>
 

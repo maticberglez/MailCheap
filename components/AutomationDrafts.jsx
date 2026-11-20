@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, Copy, GitBranch, MoreHorizontal, PenLine, Plus, Trash2 } from "lucide-react";
 import { DialogNewDraft } from "@/components/DialogNewCampaign";
 import BadgeStatus from "@/components/BadgeStatus";
 import TextEmpty from "@/components/TextEmpty";
+import NavSteps from "@/components/NavSteps";
+import PreviewAutomationEmail from "@/components/PreviewAutomationEmail";
+import RowCampaign from "@/components/RowCampaign";
+import PanelEmailEditor from "@/components/PanelEmailEditor";
 import EditorRich from "@/components/EditorRich";
 import FormWelcomeFlow from "@/components/FormWelcomeFlow";
 import HeaderPage from "@/components/HeaderPage";
@@ -16,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { automationDraftKey, listAutomationDrafts, readAutomationDraft, saveAutomationEmail, saveAutomationList } from "@/lib/automation-drafts";
 
@@ -36,7 +41,7 @@ function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
 			return null;
 		}
 	});
-	if (emailNodeId) return <OpenAutomationEmail scope={scope} id={id} draft={saved} nodeId={emailNodeId} />;
+	if (emailNodeId) return <OpenAutomationEmail scope={scope} id={id} draft={saved} nodeId={emailNodeId} addresses={addresses} />;
 	return (
 		<div data-automation-editor="" className="min-w-0">
 			<div className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
@@ -49,15 +54,43 @@ function OpenDraft({ scope, id, emailNodeId, selectedNodeId, addresses }) {
 	);
 }
 
-function OpenAutomationEmail({ scope, id, draft, nodeId }) {
-	const node = draft?.flow.nodes.find((item) => item.id === nodeId && item.type === "email");
+const EMAIL_STEPS = [{ id: "edit", label: "Edit" }, { id: "review", label: "Review" }];
+
+const EMAIL_FIELDS = [
+	["title", "Title", "Untitled email", 200],
+	["value", "Subject", "Welcome to our newsletter", 200],
+	["previewText", "Preview text", "A quick hello and what to expect", 300],
+	["fromName", "Sender name", "Your newsletter name", 100],
+];
+
+function AddressField({ label, placeholder, options, value, onChange }) {
+	return (
+		<select aria-label={label} className={cn("h-11 w-full min-w-0 bg-transparent text-sm outline-none", !value && "text-muted-foreground")} value={value} onChange={(event) => onChange(event.target.value)}>
+			<option value="">{placeholder}</option>
+			{value && !options.includes(value) && <option value={value} disabled>{value} (unavailable)</option>}
+			{options.map((email) => <option key={email} value={email}>{email}</option>)}
+	</select>
+	);
+}
+
+function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
+	const router = useRouter();
+	const returnHref = `/automations/${id}?node=${encodeURIComponent(nodeId)}`;
+	const pendingFields = useRef({});
+	const [node, setNode] = useState(() => draft?.flow.nodes.find((item) => item.id === nodeId && item.type === "email"));
+	const [initialBody] = useState(node?.html ?? "");
+	const [step, setStep] = useState("edit");
 	const [message, setMessage] = useState("");
 
-	function saveBody(html) {
+	function saveEmail(fields = {}) {
+		pendingFields.current = { ...pendingFields.current, ...fields };
+		setNode((current) => ({ ...current, ...fields }));
 		try {
-			if (saveAutomationEmail(localStorage, scope, id, nodeId, html)) {
+			if (saveAutomationEmail(localStorage, scope, id, nodeId, pendingFields.current)) {
+				pendingFields.current = {};
 				window.dispatchEvent(new StorageEvent("storage", { key: automationDraftKey(scope, id) }));
 				setMessage("Saved");
+				return true;
 			} else {
 				setMessage("This email node is no longer available.");
 			}
@@ -69,16 +102,44 @@ function OpenAutomationEmail({ scope, id, draft, nodeId }) {
 	return (
 		<div data-automation-editor="" className="min-w-0">
 			<header className="flex h-[3.25rem] items-center gap-2 border-b bg-background px-3">
-				<Button asChild variant="ghost" size="icon" aria-label="Back to flow"><Link href={`/automations/${id}?node=${encodeURIComponent(nodeId)}`}><ArrowLeft /></Link></Button>
-				<h1 className="min-w-0 truncate text-xl font-semibold">{node?.value || "Automation email"}</h1>
+				<Button asChild variant="ghost" size="icon" aria-label="Back to flow"><Link href={returnHref}><ArrowLeft /></Link></Button>
+				<h1 className="min-w-0 truncate text-xl font-semibold">{node?.title || node?.value || "Automation email"}</h1>
 				<BadgeStatus status="draft" />
 				<span role="status" className="ml-auto text-sm text-muted-foreground">{message}</span>
 			</header>
 			{node ? <div className="mx-auto max-w-3xl space-y-4 p-4 md:py-8">
 				<p className="truncate text-sm text-muted-foreground">{draft.name}</p>
-				<div className="overflow-hidden rounded-xl border bg-card">
-					<EditorRich content={node.html ?? ""} onChange={saveBody} minHeight="min-h-[60vh]" />
-				</div>
+				<NavSteps steps={EMAIL_STEPS} step={step} onStep={setStep} className="flex justify-center" />
+				<section aria-label="Edit" hidden={step !== "edit"}>
+					<PanelEmailEditor className="shadow-border">
+						<div className="divide-y divide-border/60 border-b border-border/60">
+							{EMAIL_FIELDS.map(([key, label, placeholder, maxLength]) => (
+								<RowCampaign key={key} label={label}>
+									<input className={cn("h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:font-normal placeholder:text-muted-foreground", key === "value" && "font-medium")}
+										aria-label={label} maxLength={maxLength} value={node[key] ?? ""} placeholder={key === "fromName" ? addresses.senderName || placeholder : placeholder}
+										onChange={(event) => saveEmail({ [key]: event.target.value })} />
+								</RowCampaign>
+							))}
+							<RowCampaign label="Sender email">
+								<AddressField label="Sender email" placeholder={addresses.sender || "Select a sender address"} options={addresses.fromEmails}
+									value={node.fromEmail ?? ""} onChange={(fromEmail) => saveEmail({ fromEmail })} />
+							</RowCampaign>
+							<RowCampaign label="Reply to">
+								<AddressField label="Reply to" placeholder={addresses.replyTo || "Use the sender address"} options={addresses.replyEmails}
+									value={node.replyTo ?? ""} onChange={(replyTo) => saveEmail({ replyTo })} />
+							</RowCampaign>
+						</div>
+						<EditorRich content={initialBody} onChange={(html) => saveEmail({ html })} minHeight="min-h-[60vh]" />
+					</PanelEmailEditor>
+				</section>
+				{step === "review" && (
+					<section aria-label="Review" className="space-y-4">
+						<PreviewAutomationEmail node={node} addresses={addresses} />
+						<div className="flex justify-end">
+							<Button type="button" onClick={() => { if (saveEmail()) router.push(returnHref); }}>Save</Button>
+						</div>
+					</section>
+				)}
 			</div> : <p className="p-4 text-sm text-muted-foreground">This email node could not be opened in this browser.</p>}
 		</div>
 	);

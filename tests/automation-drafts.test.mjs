@@ -24,7 +24,7 @@ test("the original welcome draft appears beside new drafts and each has separate
 	assert.deepEqual(listAutomationDrafts(storage, scope), [], "deleting the legacy entry does not resurrect it");
 });
 
-test("the dedicated email editor updates only the selected email body", () => {
+test("the dedicated email editor updates only the selected email fields", () => {
 	const data = new Map();
 	const storage = { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
 	const scope = "welcome-flow:user:newsletter";
@@ -33,9 +33,9 @@ test("the dedicated email editor updates only the selected email body", () => {
 		{ id: "sms", type: "sms", value: "Hello" },
 	] };
 	storage.setItem(automationDraftKey(scope, "draft"), JSON.stringify(flow));
-	assert.equal(saveAutomationEmail(storage, scope, "draft", "sms", "<p>Ignored</p>"), false);
-	assert.equal(saveAutomationEmail(storage, scope, "draft", "email", "<p>Hello</p>", "2026-11-19T00:00:00.000Z"), true);
+	assert.equal(saveAutomationEmail(storage, scope, "draft", "sms", { html: "<p>Ignored</p>" }), false);
+	assert.equal(saveAutomationEmail(storage, scope, "draft", "email", { html: "<p>Hello</p>", title: "First email", value: "New subject", fromName: "Sender" }, "2026-11-19T00:00:00.000Z"), true);
 	assert.deepEqual(readAutomationDraft(storage, scope, "draft"), {
-		...flow, nodes: [{ ...flow.nodes[0], html: "<p>Hello</p>" }, flow.nodes[1]], updatedAt: "2026-11-19T00:00:00.000Z",
+		...flow, nodes: [{ ...flow.nodes[0], html: "<p>Hello</p>", title: "First email", value: "New subject", fromName: "Sender" }, flow.nodes[1]], updatedAt: "2026-11-19T00:00:00.000Z",
 	});
 });

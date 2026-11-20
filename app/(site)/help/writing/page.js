@@ -349,6 +349,7 @@ export default function WritingPage() {
 			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
 			<h2 id="preview">Preview and test emails</h2>
 			<p>
+				Use the Light / Dark switch at the top of the editor to change its colors while you write.
 				Preview, in the write step and in the <strong>⋯</strong> menu at any step, shows the email in a mail app&apos;s window on a
 				desktop, or in Gmail on a phone: the inbox first, with a fingertip tapping the issue&apos;s row until you open it, then the
 				email.

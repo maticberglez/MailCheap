@@ -53,7 +53,10 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+:root,
+[data-email-editor-mode="light"] {
+  --image-backdrop: transparent;
+  --mark-background: #fff4d1;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -93,7 +96,8 @@
   --site: oklch(0.985 0 0);
 }
 
-.dark {
+.dark,
+[data-email-editor-mode="dark"] {
   --surface-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
   --surface-shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
   --site: oklch(0.16 0 0);

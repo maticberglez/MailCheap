@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { Clock, Copy, Focus, GitBranch, Pencil, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
-import { sendAutomationTest } from "@/app/(app)/automations/actions";
-import { renderEmail } from "@/lib/render-email";
+import PreviewAutomationEmail from "@/components/PreviewAutomationEmail";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Clock, Copy, Focus, GitBranch, Play, LogOut, Mail, Minus, Plus, MessageSquare, Repeat, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,79 +20,6 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 112;
 const PAN_MARGIN = 220;
 const TOOL_BUTTON = "h-11 min-w-0 justify-start rounded-xl border-border bg-card px-2.5 text-sm font-medium shadow-sm hover:bg-muted sm:w-36 sm:px-3 [&_svg]:size-5";
-const EMAIL_FIELDS = [
-	["value", "Subject", "Welcome to our newsletter"],
-	["previewText", "Preview text", "A quick hello and what to expect"],
-	["fromName", "Sender name", "Your newsletter name"],
-];
-
-function AddressField({ label, placeholder, options, value, onChange }) {
-	return (
-		<label className="grid gap-1 text-sm">
-			{label}
-			<select className="h-9 w-full min-w-0 rounded-md border bg-background px-3" value={value} onChange={(event) => onChange(event.target.value)}>
-				<option value="">{placeholder}</option>
-				{value && !options.includes(value) && <option value={value} disabled>{value} (unavailable)</option>}
-				{options.map((email) => <option key={email} value={email}>{email}</option>)}
-			</select>
-		</label>
-	);
-}
-
-function EmailNodePreview({ node, addresses, editHref }) {
-	const [isSending, startSending] = useTransition();
-	const [result, setResult] = useState("");
-	const { html } = renderEmail({
-		format: "rich", html: node.html ?? "", subject: node.value, previewText: node.previewText,
-		newsletter: { name: addresses.senderName, fromName: node.fromName || addresses.senderName },
-	});
-
-	function connectPreviewScroll(event) {
-		const frame = event.currentTarget;
-		const document = frame.contentDocument;
-		const settings = frame.closest("aside");
-		if (!document || !settings) return;
-		document.addEventListener("wheel", (wheel) => {
-			const body = document.scrollingElement;
-			if (!body || !wheel.deltaY || wheel.ctrlKey) return;
-			const atEdge = wheel.deltaY < 0 ? body.scrollTop <= 0 : body.scrollTop + body.clientHeight >= body.scrollHeight - 1;
-			if (!atEdge || !wheel.cancelable) return;
-			wheel.preventDefault();
-			settings.scrollTop += wheel.deltaY * (wheel.deltaMode === 1 ? 16 : wheel.deltaMode === 2 ? settings.clientHeight : 1);
-		}, { passive: false });
-	}
-
-	function send() {
-		startSending(async () => {
-			setResult("");
-			try {
-				const result = await sendAutomationTest({
-					newsletterId: addresses.newsletterId, subject: node.value || "", previewText: node.previewText || "",
-					fromName: node.fromName || "", fromEmail: node.fromEmail || "", replyTo: node.replyTo || "", html: node.html || "",
-				});
-				setResult(result.sent ? `Test sent to ${result.to}.` : result.error);
-			} catch {
-				setResult("Could not send the test email.");
-			}
-		});
-	}
-
-	return (
-		<div className="space-y-2">
-			<div className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted/30">
-				{node.html ? <iframe title="Email preview" sandbox="allow-same-origin" srcDoc={html} onLoad={connectPreviewScroll} className="absolute inset-0 block size-full bg-white" />
-					: <p className="p-4 text-sm text-muted-foreground">Add content to see a preview.</p>}
-			</div>
-			<div className="grid grid-cols-2 gap-2">
-				<Button variant="outline" className="h-11" disabled={isSending || !node.value?.trim() || !node.html || !addresses.testRecipient}
-					title={`Send to ${addresses.testRecipient}`} onClick={send}><Mail />{isSending ? "Sending…" : "Send test to me"}</Button>
-				<Button className="h-11" asChild><Link href={editHref}><Pencil /> Edit email</Link></Button>
-			</div>
-			{result && <p role="status" className="text-sm text-muted-foreground">{result}</p>}
-		</div>
-	);
-}
-
 function nodePosition(node, index) {
 	return { x: node.x ?? 56, y: node.y ?? 32 + index * 176 };
 }
@@ -137,11 +62,13 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const canvas = useRef(null);
 	const viewport = useRef(null);
 	const panDrag = useRef(null);
-	const [{ pan, zoom }, setCamera] = useState(() => {
-		const index = Math.max(0, initialFlow.nodes.findIndex(({ id }) => id === selectedNodeId));
-		const first = nodePosition(initialFlow.nodes[index] ?? {}, index);
-		return { pan: { x: 56 - first.x, y: 32 - first.y }, zoom: 1 };
-	});
+	const [{ pan, zoom }, setCamera] = useState({ pan: { x: 0, y: 0 }, zoom: 1 });
+	const [start] = useState(() => nodePosition(initialFlow.nodes[0] ?? {}, 0));
+	const setViewport = useCallback((element) => {
+		viewport.current = element;
+		if (!element) return;
+		setCamera({ pan: { x: (element.clientWidth - NODE_WIDTH) / 2 - start.x, y: 32 - start.y }, zoom: 1 });
+	}, [start]);
 	const [isPanning, setIsPanning] = useState(false);
 	const [isWheelZooming, setIsWheelZooming] = useState(false);
 	const wheelTimer = useRef(null);
@@ -406,7 +333,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 		}}>
 			<div className="grid h-[calc(100dvh-var(--plan-bar-height)-6.75rem)] min-h-80 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] overflow-hidden bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none md:h-[calc(100dvh-var(--plan-bar-height)-3.25rem)] lg:grid-cols-[minmax(0,1fr)_min(32rem,var(--node-settings-width))] lg:grid-rows-1"
 				style={{ "--node-settings-width": selectedNode ? "42%" : "0%" }}>
-				<div ref={viewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning ? "transition-none" : `transition-[background-position,background-size] ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`}
+				<div ref={setViewport} aria-label="Automation playground" className={`relative isolate min-w-0 min-h-0 touch-none overflow-clip bg-background bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] ${placement ? "cursor-crosshair" : isPanning ? "cursor-grabbing select-none" : "cursor-grab"} ${isPanning ? "transition-none" : `transition-[background-position,background-size] ease-out motion-reduce:transition-none ${isWheelZooming ? "duration-100" : "duration-300"}`}`}
 					style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${16 * zoom}px ${16 * zoom}px` }}
 					onPointerDown={(event) => {
 						if (placement && event.target === event.currentTarget && event.button === 0) place(placementPoint(event.clientX, event.clientY));
@@ -452,7 +379,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 											onClick={() => add(node.type, node)}><Copy aria-hidden="true" /></Button>
 
 									</div>
-									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : node.type === "sms" ? "No message yet" : ""}</p>
+									<p className="pointer-events-none truncate text-sm text-muted-foreground">{node.type === "email" && node.title ? node.title : node.value ? node.type === "delay" ? `${node.value} h` : node.value : node.type === "email" ? "Untitled email" : node.type === "sms" ? "No message yet" : ""}</p>
 									{node.type === "email" && <dl aria-label="Email analytics" className="pointer-events-none grid grid-cols-3 border-t pt-1 text-xs text-muted-foreground">
 										{["Revenue", "Opened", "Clicked"].map((label) => <div key={label}><dt>{label}</dt><dd aria-label="No data">—</dd></div>)}
 									</dl>}
@@ -517,19 +444,9 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 								<label className="grid gap-1 text-sm">Required entry tag<Input placeholder="Any subscriber" value={flow.entryTag} onChange={(event) => change({ ...flow, entryTag: event.target.value })} /></label>
 								<label className="grid gap-1 text-sm">Exit if tagged<Input placeholder="For example, customer" value={flow.exitTag} onChange={(event) => change({ ...flow, exitTag: event.target.value })} /></label>
 							</fieldset>}
-							{selectedNode.type === "email" && <>
-								<div className="grid gap-3">
-									{EMAIL_FIELDS.map(([key, label, placeholder]) => <label key={key} className="grid gap-1 text-sm">
-										{label}<Input value={selectedNode[key] ?? ""} placeholder={key === "fromName" ? addresses.senderName || placeholder : placeholder}
-											onChange={(event) => update(selectedNode.id, { [key]: event.target.value })} />
-									</label>)}
-									<AddressField label="Sender email" placeholder={addresses.sender || "Select a sender address"} options={addresses.fromEmails}
-										value={selectedNode.fromEmail ?? ""} onChange={(fromEmail) => update(selectedNode.id, { fromEmail })} />
-									<AddressField label="Reply to" placeholder="Use the sender address" options={addresses.replyEmails}
-										value={selectedNode.replyTo ?? ""} onChange={(replyTo) => update(selectedNode.id, { replyTo })} />
-								</div>
-								<EmailNodePreview key={selectedNode.id} node={selectedNode} addresses={addresses} editHref={`${editPath}/${selectedNode.id}`} />
-							</>}
+							{selectedNode.type === "email" && (
+								<PreviewAutomationEmail key={selectedNode.id} node={selectedNode} addresses={addresses} editHref={`${editPath}/${selectedNode.id}`} />
+							)}
 						</section>}
 					</aside>
 				</div>
