@@ -287,7 +287,7 @@ export default function WritingPage() {
 			<p>
 				Click Add section below the email, or type <kbd>/</kbd> and choose Section to add one after the current section.
 				Click the Section settings icon to change its columns, backgrounds or corner radius, or duplicate the section with its blocks.
-				A campaign can have up to {MAX_SECTIONS} sections.
+				The trash icon below the settings icon deletes the section and its blocks. A campaign can have up to {MAX_SECTIONS} sections.
 			</p>
 			<p>
 				Previously saved visibility rules still apply when previewing, publishing or sending a campaign. Use Preview to check

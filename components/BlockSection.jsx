@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { TextSelection } from "@tiptap/pm/state";
 import { Node } from "@tiptap/core";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { Copy, SquareDashed, SquareRoundCorner } from "lucide-react";
+import { Copy, SquareDashed, SquareRoundCorner, Trash2 } from "lucide-react";
 import ControlSectionColor from "@/components/ControlSectionColor";
 import ControlEditorSize from "@/components/ControlEditorSize";
 import { EmailModePreviewContext } from "@/components/PanelEmailEditor";
@@ -14,6 +14,7 @@ import { isHexColor } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { reshapeSection } from "@/lib/editor-columns";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
+import { deleteBlock } from "@/lib/editor-undo-delete";
 import { readSectionRadius, SECTION_RADIUS_MAX } from "@/lib/section-style";
 
 // The rich email schema requires sections at the root. ProseMirror wraps older flat HTML as it parses.
@@ -82,14 +83,14 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 			style={colors}
 			className="relative outline outline-dashed outline-foreground/20 motion-safe:transition-colors motion-safe:duration-200"
 		>
-			<div data-section-header="" contentEditable={false} className="absolute top-0 right-0 z-10 translate-x-[calc(100%-4px)]">
+			<div data-section-header="" contentEditable={false} className="absolute top-1 left-full z-10 flex flex-col items-center [@media(pointer:fine)]:ml-1.5">
 				<Popover open={isOpen} onOpenChange={(next) => { setIsOpen(next); if (!next) setColorMode(null); }}>
 					<PopoverTrigger asChild>
 						<button
 							type="button"
 							aria-label={`Section, ${desktop} ${desktop === 1 ? "column" : "columns"}`}
 							title="Section settings"
-							className="grid size-6 place-items-center rounded-md border bg-popover text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent"
+							className="grid h-6 w-5 place-items-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent"
 						>
 							<SquareDashed aria-hidden="true" className="size-3.5" />
 						</button>
@@ -146,6 +147,15 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 						</div>
 					</PopoverContent>
 				</Popover>
+				{editor?.isEditable && (
+					<button type="button" aria-label="Delete section" title="Delete section"
+						className="grid size-5 place-items-center rounded-md text-muted-foreground outline-none hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
+						onClick={() => {
+							const pos = getPos();
+							if (typeof pos === "number") deleteBlock(editor, pos);
+						}}
+					><Trash2 aria-hidden="true" className="size-3.5" /></button>
+				)}
 			</div>
 			<NodeViewContent />
 		</NodeViewWrapper>

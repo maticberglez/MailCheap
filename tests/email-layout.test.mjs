@@ -110,13 +110,13 @@ test("rich email documents wrap older loose blocks and keep existing section rul
 	tr.doc.check();
 });
 
-test("a section renders its layout settings trigger", async () => {
+test("an editable section renders delete after its settings trigger", async () => {
 	const { createElement } = await import("react");
 	const { renderToStaticMarkup } = await import("react-dom/server");
 	const { default: BlockSection } = await import("../components/BlockSection.jsx");
-	const html = renderToStaticMarkup(createElement(BlockSection, { node: { attrs: {} } }));
+	const html = renderToStaticMarkup(createElement(BlockSection, { node: { attrs: {} }, editor: { isEditable: true } }));
 	assert.match(html, /data-section-header/);
-	assert.match(html, /Section/);
+	assert.match(html, /title="Section settings"[\s\S]*aria-label="Delete section"/);
 });
 
 test("countdown and static discount blocks render from section content", async () => {
