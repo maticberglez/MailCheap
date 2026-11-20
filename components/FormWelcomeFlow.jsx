@@ -1,5 +1,6 @@
 "use client";
 
+import SelectAutomationTrigger from "@/components/SelectAutomationTrigger";
 import PanelAutomationTrigger from "@/components/PanelAutomationTrigger";
 import PreviewAutomationEmail from "@/components/PreviewAutomationEmail";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -61,6 +62,9 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const [tags, setTags] = useState("");
 	const [variant, setVariant] = useState("a");
 	const [sampleEvent, setSampleEvent] = useState(null);
+	const [sampleProducts, setSampleProducts] = useState("");
+	const [sampleAmount, setSampleAmount] = useState("");
+	const simulationTrigger = sampleEvent ?? flow.trigger ?? "subscribe";
 	const [isTriggerOpen, setIsTriggerOpen] = useState(false);
 	const [isSimulationOpen, setIsSimulationOpen] = useState(false);
 	const [result, setResult] = useState(null);
@@ -102,7 +106,7 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 	const hasSettings = hasNodeSettings || isTriggerOpen;
 	const triggerText = flow.trigger === "tag" && flow.triggerTag
 		? `receive the “${flow.triggerTag}” tag`
-		: FLOW_TRIGGERS[flow.trigger] ?? FLOW_TRIGGERS.subscribe;
+		: (FLOW_TRIGGERS[flow.trigger] ?? FLOW_TRIGGERS.subscribe).summary;
 
 	function setPan(next) {
 		setCamera((camera) => ({ ...camera, pan: typeof next === "function" ? next(camera.pan) : next }));
@@ -547,18 +551,25 @@ export default function FormWelcomeFlow({ storageKey, initialFlow, editPath, sel
 					<DialogDescription>Try the flow with sample contact tags. Simulation sends no messages.</DialogDescription>
 					<section className="space-y-3 rounded-xl border bg-card p-4">
 						<label className="grid gap-1 text-sm">Sample trigger
-							<select value={sampleEvent ?? flow.trigger ?? "subscribe"} onChange={(event) => setSampleEvent(event.target.value)} className="h-9 rounded-md border bg-background px-3">
-								<option value="subscribe">Subscriber joins</option>
-								<option value="tag">Contact tag added</option>
-							</select>
+							<SelectAutomationTrigger value={simulationTrigger} onChange={setSampleEvent} />
 						</label>
 						<label className="grid gap-1 text-sm">Sample contact tags<Input placeholder="vip, customer" value={tags} onChange={(event) => setTags(event.target.value)} /></label>
+						{FLOW_TRIGGERS[simulationTrigger]?.commerce && (
+							<div className="grid gap-2 sm:grid-cols-2">
+								<label className="grid gap-1 text-sm">Sample product SKUs
+									<Input placeholder="SKU-1, SKU-2" value={sampleProducts} onChange={(event) => setSampleProducts(event.target.value)} />
+								</label>
+								<label className="grid gap-1 text-sm">Sample amount
+									<Input type="number" min="0" step="any" value={sampleAmount} onChange={(event) => setSampleAmount(event.target.value)} />
+								</label>
+							</div>
+						)}
 						{flow.nodes.some(({ type }) => type === "ab") && <label className="grid gap-1 text-sm">A/B variant
 							<select value={variant} onChange={(event) => setVariant(event.target.value)} className="h-9 rounded-md border bg-background px-3">
 								<option value="a">A</option><option value="b">B</option>
 							</select>
 						</label>}
-						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim()), { variant, event: sampleEvent ?? undefined }))}>Simulate flow</Button>
+						<Button onClick={() => setResult(simulateWelcomeFlow(flow, tags.split(",").map((tag) => tag.trim()), { variant, event: simulationTrigger, products: sampleProducts.split(",").map((sku) => sku.trim()), amount: sampleAmount }))}>Simulate flow</Button>
 						{result && <div aria-live="polite" className="space-y-2 text-sm">
 							<ol className="list-inside list-decimal">{result.path.map((step, index) => <li key={index}>{TYPES[step.type].label}{step.value && ` · ${step.value}`} · +{step.hours} h</li>)}</ol>
 							<p>{result.reason}</p>

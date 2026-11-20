@@ -1,5 +1,6 @@
 "use client";
 
+import SelectAutomationTrigger from "@/components/SelectAutomationTrigger";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,15 +19,11 @@ export default function PanelAutomationTrigger({ flow, onChange, onClose }) {
 			</div>
 			<label className="grid gap-1 text-sm">
 				Trigger
-				<select value={flow.trigger ?? "subscribe"} onChange={(event) => update({ trigger: event.target.value })}
-					className="h-9 rounded-md border bg-background px-3">
-					<option value="subscribe">Subscriber joins</option>
-					<option value="tag">Contact tag added</option>
-				</select>
+				<SelectAutomationTrigger value={flow.trigger ?? "subscribe"} onChange={(trigger) => update({ trigger })} />
 			</label>
 			{flow.trigger === "tag" && (
 				<label className="grid gap-1 text-sm">Trigger tag
-					<Input placeholder={FLOW_TRIGGERS.tag} value={flow.triggerTag ?? ""} onChange={(event) => update({ triggerTag: event.target.value })} />
+					<Input placeholder={FLOW_TRIGGERS.tag.summary} value={flow.triggerTag ?? ""} onChange={(event) => update({ triggerTag: event.target.value })} />
 				</label>
 			)}
 			<fieldset className="grid gap-2 border-t pt-3">
@@ -41,6 +38,19 @@ export default function PanelAutomationTrigger({ flow, onChange, onClose }) {
 				))}
 				<Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={() => setFilters([...filters, ""])}><Plus /> Add trigger filter</Button>
 			</fieldset>
+			{FLOW_TRIGGERS[flow.trigger]?.commerce && (
+				<fieldset className="grid gap-2 border-t pt-3">
+					<legend className="text-sm font-medium">E-commerce filters</legend>
+					<label className="grid gap-1 text-sm">Product SKU
+						<Input value={flow.commerceFilters?.sku ?? ""} onChange={(event) => update({ commerceFilters: { ...flow.commerceFilters, sku: event.target.value } })} />
+					</label>
+					<label className="grid gap-1 text-sm">Minimum amount
+						<Input type="number" min="0" step="any" value={flow.commerceFilters?.minimumAmount ?? ""}
+							onChange={(event) => update({ commerceFilters: { ...flow.commerceFilters, minimumAmount: event.target.value } })} />
+					</label>
+					<p className="text-sm text-muted-foreground">Available in simulation.</p>
+				</fieldset>
+			)}
 			<label className="grid gap-1 border-t pt-3 text-sm">Exit when tagged
 				<Input placeholder="No exit condition" value={flow.exitTag ?? ""} onChange={(event) => update({ exitTag: event.target.value })} />
 			</label>

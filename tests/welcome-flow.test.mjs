@@ -138,3 +138,17 @@ test("live welcome flows accept a single connected email and reject unsupported 
 		{ nodes: [{ ...email, html: { code: "not HTML" } }] },
 	]) assert.equal(readPublishableWelcomeFlow(flow), null);
 });
+
+test("commerce triggers match their own event and require every selected commerce filter", () => {
+	const nodes = [{ id: "email", type: "email" }];
+	for (const trigger of ["order", "checkout", "cart"]) {
+		const flow = { nodes, trigger, commerceFilters: { sku: "SKU-1", minimumAmount: "25.50" } };
+		const matching = { event: trigger, products: ["SKU-1", "SKU-2"], amount: "25.50" };
+		assert.equal(simulateWelcomeFlow(flow, [], matching).path[0].id, "email");
+		assert.match(simulateWelcomeFlow(flow, [], { ...matching, event: "subscribe" }).reason, /Trigger did not match/);
+		for (const sample of [{ ...matching, products: ["SKU-2"] }, { ...matching, amount: "25.49" }, { ...matching, amount: "" }]) {
+			assert.match(simulateWelcomeFlow(flow, [], sample).reason, /E-commerce filter did not match/);
+		}
+		assert.equal(readPublishableWelcomeFlow(flow), null);
+	}
+});
