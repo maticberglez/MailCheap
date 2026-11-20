@@ -151,7 +151,7 @@ function OpenAutomationEmail({ scope, id, draft, nodeId, addresses }) {
 									value={node.replyTo ?? ""} onChange={(replyTo) => saveEmail({ replyTo })} />
 							</RowCampaign>
 						</div>
-						<EditorRich content={initialBody} onChange={(html) => saveEmail({ html })} minHeight="min-h-[60vh]" />
+						<EditorRich templateScope={scope.slice("welcome-flow:".length)} content={initialBody} onChange={(html) => saveEmail({ html })} minHeight="min-h-[60vh]" />
 					</PanelEmailEditor>
 				</section>
 				<section aria-label="Review" hidden={step !== "review"} className={STEP_MOTION}>

@@ -86,6 +86,12 @@ const newsletterSchema = new mongoose.Schema(
 			markdown: { type: String },
 			html: { type: String },
 		},
+		shopify: {
+			domain: String,
+			clientId: { type: String, select: false },
+			clientSecret: { type: String, select: false },
+			scopes: { type: [String], default: undefined },
+		},
 		welcomeAutomation: {
 			id: String,
 			version: String,

@@ -144,6 +144,7 @@ export default async function CampaignPage({ params, searchParams }) {
 
 	return (
 		<FormCampaign
+			templateScope={`${user.id}:${newsletter._id}`}
 			campaign={serialize(campaign)}
 			newsletter={serialize(newsletter)}
 			audienceCount={audience.contacts}

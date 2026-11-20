@@ -21,6 +21,7 @@ import {
 	RectangleHorizontal,
 	SquareDashed,
 	TextQuote,
+	Timer,
 	UserRound,
 } from "lucide-react";
 import { isInSection } from "@/components/BlockSection";
@@ -254,7 +255,7 @@ function ChipAddField({ isSelected, onPoint, onPick }) {
 export const SlashCommand = Extension.create({
 	name: "slashCommand",
 	addOptions() {
-		return { onPickImage: () => {}, onAddField: () => {}, contactFields: [], withSections: true };
+		return { onPickImage: () => {}, onAddField: () => {}, contactFields: [], withSections: true, onCountdown: null };
 	},
 	addStorage() {
 		return { contactFields: this.options.contactFields };
@@ -262,7 +263,7 @@ export const SlashCommand = Extension.create({
 	addProseMirrorPlugins() {
 		const { storage, options } = this;
 		const getItems = (contactFields, state = null) => {
-			const items = getSlashItems(contactFields);
+			const items = getSlashItems(contactFields).filter((item) => !item.isCountdown || options.onCountdown);
 			return options.withSections && !(state && isInSection(state)) ? items : items.filter((item) => !item.isSection);
 		};
 		return [
@@ -276,6 +277,7 @@ export const SlashCommand = Extension.create({
 				command: ({ editor, range, props: item }) => {
 					runPick(editor, range, item);
 					if (item.isImage) this.options.onPickImage(editor);
+					if (item.isCountdown) this.options.onCountdown?.();
 					if (item.isAddField) this.options.onAddField(editor);
 				},
 				...MENU_OPTIONS,
@@ -496,6 +498,7 @@ const SLASH_ITEMS = [
 	{ title: "Quote", keywords: "blockquote", icon: TextQuote, run: (chain) => chain.setBlockquote() },
 	{ title: "Divider", keywords: "hr separator line", icon: Minus, run: (chain) => chain.setHorizontalRule() },
 	{ title: "Image", keywords: "picture photo upload library", icon: ImagePlus, run: (chain) => chain, isImage: true },
+	{ title: "Countdown", keywords: "timer deadline animated gif", icon: Timer, run: (chain) => chain, isCountdown: true },
 	{
 		title: "Button",
 		keywords: "cta call to action link",

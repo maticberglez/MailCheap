@@ -340,6 +340,12 @@ export default function ContactsPage() {
 				or has a section for, can&apos;t be deleted until that issue goes elsewhere or the section changes.
 			</p>
 
+			<p>
+				E-commerce conditions match tags on your contacts. Use <code>commerce:ordered</code>, <code>commerce:viewed-page</code>,
+				<code>commerce:added-to-cart</code> or <code>commerce:reached-checkout</code> when importing or tagging contacts. A missing tag
+				does not tell you whether the event happened in the store.
+			</p>
+
 			<h2 id="add">Adding contacts</h2>
 			<p>
 				Click Add contacts, at the top of the <LinkApp href="/contacts">Contacts page</LinkApp>, and pick how people join your

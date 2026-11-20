@@ -12,6 +12,8 @@ import DialogContactFields from "@/components/DialogContactFields";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import GutterProblems from "@/components/GutterProblems";
 import MenuButton from "@/components/MenuButton";
+import DialogCountdown from "@/components/DialogCountdown";
+import MenuEditorTemplates from "@/components/MenuEditorTemplates";
 import MenuFormat from "@/components/MenuFormat";
 import MenuImage from "@/components/MenuImage";
 import { MergeTagSuggestion, SlashCommand } from "@/components/MenuSlash";
@@ -58,10 +60,12 @@ export default function EditorRich({
 	sections = null,
 	actionLink = null,
 	minHeight = MIN_HEIGHT,
+	templateScope = null,
 }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isEditingButtonLink, setIsEditingButtonLink] = useState(false);
 	const [imagePicker, setImagePicker] = useState(null);
+	const [showCountdown, setShowCountdown] = useState(false);
 	const [isAddingField, setIsAddingField] = useState(false);
 	// The block whose dot says what it's about, once brought into view.
 	const [pinned, setPinned] = useState(null);
@@ -111,6 +115,7 @@ export default function EditorRich({
 				onAddField: () => setIsAddingField(true),
 				contactFields,
 				withSections: Boolean(sections),
+				onCountdown: templateScope ? () => setShowCountdown(true) : null,
 			}),
 			MergeTagSuggestion.configure({ contactFields }),
 		],
@@ -179,6 +184,7 @@ export default function EditorRich({
 
 	return (
 		<SectionsContext value={sections}>
+			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} withSections={Boolean(sections)} />}
 			<EditorContent editor={editor} className="relative" />
 			<GutterProblems
 				editor={editor}
@@ -191,6 +197,9 @@ export default function EditorRich({
 			<MenuButton editor={editor} isEditingLink={isEditingButtonLink} onEditLink={setIsEditingButtonLink} actionLink={actionLink} />
 			<MenuImage editor={editor} />
 			<TooltipMergeTag editor={editor} contactFields={contactFields} />
+			{showCountdown && <DialogCountdown onOpenChange={setShowCountdown} onInsert={({ src, alt }) => {
+				editor.chain().focus().insertContent({ type: "image", attrs: { src, alt } }).run();
+			}} />}
 			<DialogImagePicker
 				open={Boolean(imagePicker)}
 				currentUrl={imagePicker?.replaceUrl}

@@ -97,6 +97,7 @@ const COMPACT_SCREEN = "(width < 64rem)";
 export default function FormCampaign({
 	campaign,
 	newsletter,
+	templateScope,
 	audienceCount,
 	everyoneCount,
 	segments,
@@ -602,6 +603,7 @@ export default function FormCampaign({
 									onContactFieldsChange={setEditedFields}
 									newsletter={newsletter}
 									sections={sections.context}
+									templateScope={templateScope}
 								/>
 								{!isWebOnly && <FooterEmail newsletter={newsletter} />}
 							</>

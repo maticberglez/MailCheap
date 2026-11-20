@@ -124,3 +124,24 @@ export async function removeWebsiteDomain(newsletterId) {
 	revalidatePath(SETTINGS_PATH, "layout");
 	return failure ? toFormError(failure) : { ok: true, removed: output.removed };
 }
+
+export async function saveShopifyConnection(_previous, formData) {
+	const id = String(formData.get("newsletterId") ?? "");
+	const { failure } = formData.get("action") === "disconnect"
+		? await runDashboardAction("disconnect_shopify", { id })
+		: await runDashboardAction("connect_shopify", {
+			id, domain: formData.get("domain"), clientId: formData.get("clientId"), clientSecret: formData.get("clientSecret"),
+		});
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters/shopify");
+	revalidatePath("/newsletters");
+	return { ok: true };
+}
+
+export async function manageShopifyCodes(_previous, formData) {
+	const id = String(formData.get("newsletterId") ?? "");
+	const { output, failure } = formData.get("action") === "check"
+		? await runDashboardAction("get_shopify_codes", { id, jobId: formData.get("jobId") })
+		: await runDashboardAction("generate_shopify_codes", { id, discountId: formData.get("discountId"), count: Number(formData.get("count")) });
+	return failure ? toFormError(failure) : { ...output, jobId: output.jobId ?? formData.get("jobId") };
+}

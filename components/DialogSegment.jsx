@@ -332,11 +332,17 @@ function RowCondition({ condition, fields, tags, onChange, onRemove }) {
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>
-						{Object.entries(SEGMENT_FIELDS).map(([value, { label }]) => (
+						{Object.entries(SEGMENT_FIELDS).filter(([, field]) => !field.commerce).map(([value, { label }]) => (
 							<SelectItem key={value} value={value}>
 								{label}
 							</SelectItem>
 						))}
+						<SelectSeparator />
+						<SelectGroup>
+							<SelectLabel>E-commerce</SelectLabel>
+							{Object.entries(SEGMENT_FIELDS).filter(([, field]) => field.commerce)
+								.map(([value, { label }]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+						</SelectGroup>
 						{fields.length > 0 && (
 							<>
 								<SelectSeparator />

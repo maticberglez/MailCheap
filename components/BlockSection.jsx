@@ -4,7 +4,7 @@ import { createContext, use, useEffect, useState } from "react";
 import { Node } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import { ChevronDown, ChevronsUpDown, Globe, Mail, Plus, SquareSplitVertical, Ungroup, UsersRound } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Copy, Globe, Mail, Plus, SquareSplitVertical, Ungroup, UsersRound } from "lucide-react";
 import LinkHelp from "@/components/LinkHelp";
 import {
 	DropdownMenu,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { formatNumber } from "@/lib/format";
 import {
 	SECTION_PLACES,
@@ -67,6 +68,15 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 
 	function change(next) {
 		updateAttributes(toNodeAttributes(next));
+	}
+
+	function duplicate() {
+		const pos = getPos();
+		const tr = typeof pos === "number" && duplicateBlock(editor.state, pos);
+		if (!tr) return;
+		setIsOpen(false);
+		editor.view.dispatch(tr);
+		editor.commands.focus();
 	}
 
 	// The section's blocks back in the issue, for everyone, everywhere.
@@ -141,7 +151,7 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 								</div>
 							))}
 						</div>
-						<SettingsSection rule={rule} isDeleted={isDeleted} onChange={change} onAddOpposite={addOpposite} onRemove={remove} />
+						<SettingsSection rule={rule} isDeleted={isDeleted} onChange={change} onAddOpposite={addOpposite} onRemove={remove} onDuplicate={duplicate} />
 					</PopoverContent>
 				</Popover>
 			</div>
@@ -151,7 +161,7 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 }
 
 // Who sees the section, with how many of the issue's readers that is, and where it shows.
-function SettingsSection({ rule, isDeleted, onChange, onAddOpposite, onRemove }) {
+function SettingsSection({ rule, isDeleted, onChange, onAddOpposite, onRemove, onDuplicate }) {
 	const context = use(SectionsContext);
 	const group = rule?.group ?? null;
 	const groupKey = group ? formatSectionGroup(group) : EVERYONE;
@@ -219,6 +229,7 @@ function SettingsSection({ rule, isDeleted, onChange, onAddOpposite, onRemove })
 						Add a version for {isExcept ? "them" : "everyone else"}
 					</ButtonSettings>
 				)}
+				<ButtonSettings icon={Copy} onClick={onDuplicate}>Duplicate section</ButtonSettings>
 				<ButtonSettings icon={Ungroup} onClick={onRemove}>
 					Remove the section, keep its content
 				</ButtonSettings>

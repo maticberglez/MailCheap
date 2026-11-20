@@ -347,6 +347,17 @@ export default function WritingPage() {
 
 			<p>Set Reply to in Write to send replies for this campaign to a different address. Leave it empty to use the usual author or newsletter address.</p>
 			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
+			<h2 id="templates-and-countdowns">Templates and countdowns</h2>
+			<p>
+				Open Templates in the email editor to save the email body. Put your cursor inside a section to save just that section.
+				Insert a saved template to add it after the current block. Templates stay in this browser for your newsletter and keep
+				images and their links. Choose Duplicate section in a section&apos;s settings to copy it inside the current email.
+			</p>
+			<p>
+				Choose Countdown from the slash menu and paste the HTTPS image URL from your email countdown provider.
+				Add fallback text with the deadline for readers who block images.
+			</p>
+
 			<h2 id="preview">Preview and test emails</h2>
 			<p>
 				Use the Light / Dark switch at the top of the editor to change its colors while you write.

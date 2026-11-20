@@ -1,4 +1,4 @@
-import { AtSign, Bell, BrushCleaning, CodeXml, Globe, Hand, MailCheck, Palette, UsersRound } from "lucide-react";
+import { AtSign, Bell, BrushCleaning, CodeXml, Globe, Hand, MailCheck, Palette, ShoppingBag, UsersRound } from "lucide-react";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardSettingsSection from "@/components/CardSettingsSection";
 import HeaderPage from "@/components/HeaderPage";
@@ -24,6 +24,7 @@ export default async function SettingsPage() {
 	const team = isOwner ? await listTeam(page.account, newsletter._id) : null;
 	const ownerCards = [
 		team && { ...TEAM_SECTION, icon: UsersRound, state: getTeamSummary(team) },
+		isOwner && { id: "shopify", label: "Shopify integration", icon: ShoppingBag, state: { text: newsletter.shopify?.domain ?? "Not connected", tone: newsletter.shopify?.domain ? "on" : "off" } },
 		isOwner && page.isCloud && { ...NOTIFICATIONS_SECTION, icon: Bell, state: summary.notifications },
 	].filter(Boolean);
 
@@ -65,7 +66,7 @@ export default async function SettingsPage() {
 				</li>
 				{ownerCards.map(({ id, label, icon, state }, index) => (
 					<li key={id}>
-						<CardSettingsSection href={getSectionPath(id)} icon={icon} label={label} state={state} stagger={SETTINGS_SECTIONS.length + 3 + index} />
+						<CardSettingsSection href={id === "shopify" ? "/newsletters/shopify" : getSectionPath(id)} icon={icon} label={label} state={state} stagger={SETTINGS_SECTIONS.length + 3 + index} />
 					</li>
 				))}
 			</ul>

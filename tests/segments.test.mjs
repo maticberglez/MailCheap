@@ -344,3 +344,13 @@ describe("segments through the API", () => {
 		}
 	});
 });
+
+test("commerce conditions use the fixed tags for each event", () => {
+	for (const [field, tag] of Object.entries({
+		ordered: "commerce:ordered", viewed_page: "commerce:viewed-page",
+		added_to_cart: "commerce:added-to-cart", reached_checkout: "commerce:reached-checkout",
+	})) {
+		assert.deepEqual(compileSegment(rules([{ field, op: "has", value: "ignored" }])), { tags: tag });
+		assert.deepEqual(compileSegment(rules([{ field, op: "has_not" }])), { tags: { $ne: tag } });
+	}
+});
