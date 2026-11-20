@@ -15,7 +15,7 @@ import { normalizeUrl } from "@/lib/links";
 // sits in the column (lib/editor-image.js), its alt text and a way to remove it. It sits inside the picture's top edge,
 // in the editor's parent next to the blocks' grip (lib/editor-block-handle.js), so the pointer gets to it without
 // leaving the picture.
-export default function MenuImage({ editor }) {
+export default function MenuImage({ editor, overlayContainer }) {
 	const [hovered, setHovered] = useState(null);
 	const [field, setField] = useState(null);
 	const [isFocusInside, setIsFocusInside] = useState(false);
@@ -25,7 +25,7 @@ export default function MenuImage({ editor }) {
 	const suppressAdjustmentClick = useRef(false);
 	const target = useEditorState({ editor, selector: ({ editor: current }) => getTarget(current, hovered, isFocusInside) });
 	const image = target && !isDragging ? editor.view.nodeDOM(target.pos) : null;
-	const container = editor.isEditorContentInitialized ? editor.view.dom.parentElement : null;
+	const container = overlayContainer;
 
 	useEffect(() => {
 		const { dom } = editor.view;
@@ -68,7 +68,7 @@ export default function MenuImage({ editor }) {
 			editor.off("transaction", place);
 			window.removeEventListener("resize", place);
 		};
-	}, [editor, image, field]);
+	}, [editor, image, field, container]);
 
 	if (!container || !image) return null;
 

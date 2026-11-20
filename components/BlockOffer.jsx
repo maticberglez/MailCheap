@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { normalizeHexColor } from "@/lib/colors";
-import { offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
+import { DISCOUNT_COPY_SYMBOL, offerStyleData, OFFER_PADDING, OFFER_SIZES, OFFER_STYLE_KEYS, readOfferStyle } from "@/lib/offer-style";
 import { cn } from "@/lib/utils";
 import { countdownDeadlineText, countdownText, readCountdownDeadline } from "@/lib/countdown";
 
@@ -140,7 +140,7 @@ function BlockOffer({ node, updateAttributes, editor }) {
 					</form>
 				</PopoverContent>
 			</Popover>
-			{!countdown && node.attrs.code && <div className="mt-2"><ButtonCopy value={node.attrs.code} label="Copy code" hasLabel /></div>}
+			{!countdown && node.attrs.code && <div className="mt-2"><ButtonCopy value={node.attrs.code} label="Copy code" hasLabel symbol={DISCOUNT_COPY_SYMBOL} /></div>}
 		</NodeViewWrapper>
 	);
 }

@@ -135,7 +135,7 @@ test("countdown and static discount blocks render from section content", async (
 	assert.match(sent.text, /SAVE&20/);
 	assert.match(sent.html, /text-align:right;">\s*<div style="display:inline-block;[^"]*padding:0px 24px;border:1px dashed/);
 	assert.match(sent.html, /color:#ac12ff;font-size:40px;/);
-	assert.match(sent.html, /href="https:\/\/example.com\/copy-discount#SAVE%2620"/);
+	assert.match(sent.html, /href="https:\/\/example.com\/copy-discount#SAVE%2620" style="display:inline-block;min-width:80px;[^"]*border:1px solid [^"]*text-decoration:none;[^"]*"><span aria-hidden="true"[^>]*>⧉<\/span> Copy code<\/a>/);
 	assert.match(sent.text, /Summer sale/);
 	assert.doesNotMatch(sent.html, /data-discount|data-countdown/);
 });

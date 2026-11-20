@@ -27,7 +27,7 @@ const MAX_DOTS = 200;
 // what, as the review step does, and clicking it goes to it (onReveal). gutterRef: the element around the editor's
 // card, positioned, which holds the dots in the margin. pinned: the block whose dot says what it's about until the next
 // key or click, once the review step brought it into view.
-export default function GutterProblems({ editor, gutterRef, pinned, onUnpin, onReveal }) {
+export default function GutterProblems({ editor, gutterRef, overlayContainer, pinned, onUnpin, onReveal }) {
 	const [layout, setLayout] = useState({ container: null, dots: [] });
 	const [hovered, setHovered] = useState(null);
 
@@ -38,7 +38,7 @@ export default function GutterProblems({ editor, gutterRef, pinned, onUnpin, onR
 		function measure() {
 			frame = null;
 			// A step that's hidden lays nothing out: its dots, and any message they show, go until it shows again.
-			const next = view.dom.offsetParent ? readDots(view, gutterRef?.current) : null;
+			const next = overlayContainer && view.dom.offsetParent ? readDots(view, gutterRef?.current, overlayContainer) : null;
 			if (!next) setHovered(null);
 			setLayout((current) => {
 				if (!next) return current.dots.length > 0 ? { ...current, dots: [] } : current;
@@ -65,7 +65,7 @@ export default function GutterProblems({ editor, gutterRef, pinned, onUnpin, onR
 			view.dom.removeEventListener("focusout", schedule);
 			observer.disconnect();
 		};
-	}, [editor, gutterRef]);
+	}, [editor, gutterRef, overlayContainer]);
 
 	useEffect(() => {
 		if (pinned === null) return;
@@ -156,12 +156,12 @@ function ListProblems({ problems }) {
 }
 
 // Each block's dot, where its first line is, or the top of an HTML block, as the grip is, in the element that holds them.
-function readDots(view, gutter) {
+function readDots(view, gutter, overlayContainer) {
 	const { blocks } = problemsKey.getState(view.state) ?? { blocks: [] };
 	const paddingLeft = Number.parseFloat(getComputedStyle(view.dom).paddingLeft) || 0;
 	const pageLeft = (view.dom.closest("main") ?? document.body).getBoundingClientRect().left;
 	const { x, width, isOutside } = placeDots({ editorLeft: view.dom.getBoundingClientRect().left, paddingLeft, pageLeft, hasGutter: Boolean(gutter) });
-	const container = isOutside ? gutter : view.dom.parentElement;
+	const container = isOutside ? gutter : overlayContainer;
 	const origin = container.getBoundingClientRect();
 	const side = x - MESSAGE_SPACE >= pageLeft ? "left" : "bottom";
 	const { activeElement } = document;

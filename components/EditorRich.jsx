@@ -71,6 +71,7 @@ export default function EditorRich({
 	const [isAddingField, setIsAddingField] = useState(false);
 	// The block whose dot says what it's about, once brought into view.
 	const [pinned, setPinned] = useState(null);
+	const [overlayContainer, setOverlayContainer] = useState(null);
 	const unpin = useCallback(() => setPinned(null), []);
 	const segmentIds = useMemo(() => (sectionSegments ?? []).map(({ id }) => id), [sectionSegments]);
 	const emailGap = sectionLayouts ? getEmailTheme(resolveTheme(newsletter?.theme)).gap : null;
@@ -197,7 +198,10 @@ export default function EditorRich({
 		<>
 			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} newsletter={newsletter} withSections={sectionLayouts} withAudience={Boolean(sectionSegments)} />}
 			<div className={sectionLayouts ? minHeight : undefined}>
-				<EditorContent editor={editor} className="relative" />
+				{/* Tiptap moves the content container's children during teardown. Keep React portals beside it. */}
+				<div ref={setOverlayContainer} className="relative">
+					<EditorContent editor={editor} className="relative" />
+				</div>
 				{sectionLayouts && (
 					<div className="flex justify-center px-4 pb-5">
 						<Button type="button" variant="outline" size="sm" onClick={() => {
@@ -209,13 +213,14 @@ export default function EditorRich({
 			<GutterProblems
 				editor={editor}
 				gutterRef={gutterRef}
+				overlayContainer={overlayContainer}
 				pinned={pinned}
 				onUnpin={unpin}
 				onReveal={({ pos, problems }) => reveal({ pos, problem: problems[0] })}
 			/>
 			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} />
 			<MenuButton editor={editor} isEditingLink={isEditingButtonLink} onEditLink={setIsEditingButtonLink} actionLink={actionLink} />
-			<MenuImage editor={editor} />
+			<MenuImage editor={editor} overlayContainer={overlayContainer} />
 			<TooltipMergeTag editor={editor} contactFields={contactFields} />
 			<DialogImagePicker
 				open={Boolean(imagePicker)}
