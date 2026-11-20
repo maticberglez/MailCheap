@@ -286,7 +286,7 @@ export default function WritingPage() {
 			</p>
 			<p>
 				Select the text of the blocks you want in it, then click Who sees this, the dashed square at the end of the bar above them.
-				Or type <kbd>/</kbd>, pick Section and write in it. A dashed outline shows where the section starts and ends, and its label
+				Or type <kbd>/</kbd>, pick Section under Sections and add blocks inside it. A dashed outline shows where the section starts and ends, and its label
 				says who sees it and where, like <strong>Only readers tagged “vip” · Email only</strong>, the tag or the segment in quotes.
 				Click the label to change them:
 			</p>
@@ -347,6 +347,17 @@ export default function WritingPage() {
 
 			<p>Set Reply to in Write to send replies for this campaign to a different address. Leave it empty to use the usual author or newsletter address.</p>
 			<p>Set a light and dark background in a section’s settings. Email apps that support dark mode styles use the dark background.</p>
+			<h2 id="email-layout">Email layout</h2>
+			<p>
+				Open a section&apos;s settings to choose one, two or three desktop columns and separate light and dark backgrounds.
+				For a section with multiple columns, choose one mobile column to stack them on phones, or keep the desktop layout.
+				Stacking depends on the reader&apos;s email app. Reducing the column count keeps the blocks in order.
+			</p>
+			<p>
+				Select a button and choose Button style to set its corner radius, width and height in pixels. Leave a field empty
+				to use the email theme&apos;s default sizing.
+			</p>
+
 			<h2 id="templates-and-countdowns">Templates and countdowns</h2>
 			<p>
 				Open Templates in the email editor to save the email body. Put your cursor inside a section to save just that section.

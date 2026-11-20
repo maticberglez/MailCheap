@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { CircleAlert, Eye, Plus } from "lucide-react";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
+import { forEmail } from "@/lib/sections";
 import EditorRich from "@/components/EditorRich";
 import RowCampaign from "@/components/RowCampaign";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,8 @@ export default function EditorEmail({
 	// Rendered only while it shows: a long email takes a few milliseconds.
 	const previewHtml = useMemo(() => {
 		if (!isPreviewOpen) return "";
-		const { html } = renderEmail({ ...toEmailContent(email), newsletter: previewNewsletter });
+		const content = toEmailContent(email);
+		const { html } = renderEmail({ ...content, html: forEmail(content.html), newsletter: previewNewsletter });
 		return toPreviewFrame(html).replaceAll(CONFIRM_URL_PLACEHOLDER, "#").replaceAll(KEEP_URL_PLACEHOLDER, "#");
 	}, [isPreviewOpen, email, previewNewsletter]);
 
@@ -96,6 +98,7 @@ export default function EditorEmail({
 			)}
 			<div ref={cardRef} className="relative">
 				<EditorRich
+					sectionLayouts
 					ref={editorRef}
 					gutterRef={cardRef}
 					content={initialHtml}

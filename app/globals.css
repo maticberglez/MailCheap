@@ -826,6 +826,23 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
       background-color 150ms ease-out,
       scale 150ms ease-out;
   }
+  & [data-button][data-button-radius] {
+    --button-radius: attr(data-button-radius px, var(--radius));
+  }
+  & [data-button][data-button-width] {
+    --button-width: attr(data-button-width px, auto);
+    --button-padding-inline: 8px;
+  }
+  & [data-button][data-button-height] {
+    --button-padding-block: max(0px, calc((attr(data-button-height px, 44px) - 20px) / 2));
+  }
+  & [data-button] > a {
+    width: var(--button-width, auto);
+    border-radius: var(--button-radius, var(--radius));
+    padding-block: var(--button-padding-block, 0.75rem);
+    padding-inline: var(--button-padding-inline, 1.5rem);
+  }
+
   & [data-button] > a:hover {
     background: color-mix(in oklab, var(--primary) 80%, transparent);
   }
@@ -1060,5 +1077,25 @@ html:has([data-campaign-steps]):not(:has([data-sidebar-expanded])) {
   }
   & hr.ProseMirror-selectednode {
     border-top-color: var(--ring);
+  }
+}
+
+[data-section-view] {
+  background-color: var(--section-light-bg, transparent);
+}
+
+.dark [data-section-view],
+[data-email-editor-mode="dark"] [data-section-view] {
+  background-color: var(--section-dark-bg, var(--section-light-bg, transparent));
+}
+
+[data-email-editor-mode="light"] [data-section-view] {
+  background-color: var(--section-light-bg, transparent);
+}
+
+@media (max-width: 600px) {
+  .prose-issue table[data-mobile-columns="1"] > tbody > tr > td[data-column] {
+    display: block;
+    width: 100%;
   }
 }

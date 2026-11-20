@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { forEmail } from "@/lib/sections";
 import PanelEmailEditor from "@/components/PanelEmailEditor";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import { Mail, Pencil } from "lucide-react";
@@ -26,7 +27,7 @@ export default function PreviewAutomationEmail({ node, addresses, editHref, onSa
 		postalAddress: addresses.postalAddress,
 	};
 	const { html } = renderEmail({
-		format: "rich", html: node.html ?? "", subject: node.value, previewText: node.previewText, newsletter: sender,
+		format: "rich", html: forEmail(node.html), subject: node.value, previewText: node.previewText, newsletter: sender,
 	});
 	const preview = fillForReader({ html: withResponsiveImages(html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#")), subject: node.value, previewText: node.previewText }, SAMPLE_READER);
 

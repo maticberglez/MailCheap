@@ -97,11 +97,14 @@ export default function MenuSlash({ items, query, command, ref }) {
 									<TileSlash key={item.title} item={item} {...optionProps(item)} />
 								))}
 							</div>
+							{menu.section && (
+								<div role="group" aria-label="Sections" className="border-t bg-muted/40 px-1.5 pb-2">
+									<p className={LABEL}>Sections</p>
+									<RowSection item={menu.section} {...optionProps(menu.section)} />
+								</div>
+							)}
 							<div role="group" aria-labelledby={personalId} className="border-t bg-muted/40 px-1.5 pt-0.5 pb-2">
-								<p id={personalId} className={LABEL}>
-									Personalize
-								</p>
-								{menu.section && <RowSection item={menu.section} {...optionProps(menu.section)} />}
+								<p id={personalId} className={LABEL}>Personalize</p>
 								<div role="group" aria-labelledby={fieldsId} className="flex flex-wrap items-center gap-1.5 px-2 pt-2.5">
 									<span id={fieldsId} className="mr-0.5 text-xs text-muted-foreground">
 										Fields
@@ -199,7 +202,7 @@ function RowSection({ item, isSelected, onPoint, onPick }) {
 			</span>
 			<span className="min-w-0 flex-1">
 				<span className="block truncate text-sm">{item.title}</span>
-				<span className="block truncate text-xs text-muted-foreground">Only some readers see it</span>
+				<span className="block truncate text-xs text-muted-foreground">Layout, background and columns</span>
 			</span>
 		</button>
 	);
@@ -263,7 +266,7 @@ export const SlashCommand = Extension.create({
 	addProseMirrorPlugins() {
 		const { storage, options } = this;
 		const getItems = (contactFields, state = null) => {
-			const items = getSlashItems(contactFields).filter((item) => !item.isCountdown || options.onCountdown);
+			const items = getSlashItems(contactFields).filter((item) => (!item.isCountdown || options.onCountdown) && (!item.isColumnLayout || !options.withSections));
 			return options.withSections && !(state && isInSection(state)) ? items : items.filter((item) => !item.isSection);
 		};
 		return [
@@ -531,6 +534,7 @@ const SLASH_ITEMS = [
 	},
 	...["Two", "Three", "Four"].map((label, index) => ({
 		title: `${label} columns`,
+		isColumnLayout: true,
 		keywords: "layout grid left right products",
 		icon: SquareDashed,
 		run: (chain) => chain.insertContent({
@@ -541,7 +545,7 @@ const SLASH_ITEMS = [
 	// Part of the issue for some readers, or for its emails or its website only (components/BlockSection.jsx).
 	{
 		title: "Section",
-		keywords: "some readers who sees audience tag segment personalize dynamic content email only web only",
+		keywords: "layout columns background mobile audience tag segment email only web only",
 		icon: SquareDashed,
 		isSection: true,
 		run: (chain) => chain.wrapIn("section", { isNew: true }),

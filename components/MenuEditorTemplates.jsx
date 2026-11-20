@@ -5,10 +5,11 @@ import { DOMSerializer } from "@tiptap/pm/model";
 import { LayoutTemplate, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { listSections } from "@/lib/sections";
 import { Input } from "@/components/ui/input";
 import { readEditorTemplates, removeEditorTemplate, saveEditorTemplate } from "@/lib/editor-templates";
 
-export default function MenuEditorTemplates({ editor, scope, withSections }) {
+export default function MenuEditorTemplates({ editor, scope, withSections, withAudience }) {
 	const [open, setOpen] = useState(false);
 	const [templates, setTemplates] = useState([]);
 	const [sectionHtml, setSectionHtml] = useState(null);
@@ -56,7 +57,8 @@ export default function MenuEditorTemplates({ editor, scope, withSections }) {
 	}
 
 	function insert(template) {
-		if (!withSections && /<section\b[^>]*\sdata-section(?:[\s=>])/i.test(template.html)) {
+		const sections = listSections(template.html);
+		if (sections.length && (!withSections || (!withAudience && sections.some((rule) => !rule || rule.group || rule.place === "web")))) {
 			setError("This editor does not support campaign sections.");
 			return;
 		}

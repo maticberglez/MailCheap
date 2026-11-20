@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+import { reshapeSection } from "@/lib/editor-columns";
 import { duplicateBlock } from "@/lib/editor-duplicate-block";
 import { formatNumber } from "@/lib/format";
 import {
@@ -66,6 +67,24 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 		editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, "isNew", false).setMeta("addToHistory", false));
 	}, [editor, getPos, node.attrs.isNew]);
 
+	const columns = node.firstChild?.type.name === "columns" ? node.firstChild : null;
+	const desktop = columns?.childCount ?? 1;
+	const mobile = columns?.attrs.mobile === "1" ? "1" : "same";
+	const colors = Object.fromEntries(["light", "dark"].filter((mode) => /^#[0-9a-f]{6}$/i.test(node.attrs[mode] ?? ""))
+		.map((mode) => [`--section-${mode}-bg`, node.attrs[mode]]));
+
+	function setLayout(count, stack) {
+		const pos = getPos();
+		if (typeof pos !== "number") return;
+		editor.view.dispatch(editor.state.tr.replaceWith(pos + 1, pos + node.nodeSize - 1, reshapeSection(node, count, stack)));
+	}
+
+	function setMobileLayout(value) {
+		const pos = getPos();
+		if (typeof pos !== "number" || !columns) return;
+		editor.view.dispatch(editor.state.tr.setNodeAttribute(pos + 1, "mobile", value === "1" ? "1" : null));
+	}
+
 	function change(next) {
 		updateAttributes(toNodeAttributes(next));
 	}
@@ -112,6 +131,7 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 	return (
 		<NodeViewWrapper
 			data-section-view=""
+			style={colors}
 			className={cn("my-8 rounded-xl border border-dashed px-4 pt-3 pb-1", hasProblem ? "border-destructive/50" : "border-foreground/20")}
 		>
 			<div contentEditable={false} className="mb-3 flex min-w-0">
@@ -126,8 +146,8 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 						>
 							<PlaceIcon aria-hidden="true" className="size-3.5 shrink-0" />
 							<span className="truncate">
-								{rule ? describeSectionReaders(rule, segments) : "Pick who sees this section"}
-								<span className="text-muted-foreground"> · {SECTION_PLACE_LABELS[place]}</span>
+								{context ? (rule ? describeSectionReaders(rule, segments) : "Pick who sees this section") : "Section"}
+								<span className="text-muted-foreground"> · {desktop} {desktop === 1 ? "column" : "columns"}</span>
 							</span>
 							<ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
 						</button>
@@ -140,6 +160,20 @@ export default function BlockSection({ node, updateAttributes, editor, getPos })
 							editor.commands.focus();
 						}}
 					>
+						<div className="grid grid-cols-2 gap-2 px-3 pt-3">
+							<label className="grid gap-1 text-xs">Desktop columns
+								<select value={desktop} onChange={(event) => setLayout(Number(event.target.value), columns?.attrs.mobile)} className="h-8 rounded-md border bg-background px-2">
+									{[1, 2, 3, ...(desktop === 4 ? [4] : [])].map((count) => <option key={count} value={count}>{count}</option>)}
+								</select>
+							</label>
+							<label className="grid gap-1 text-xs">Mobile columns
+								<select value={desktop === 1 ? "1" : mobile} disabled={desktop === 1} onChange={(event) => setMobileLayout(event.target.value)}
+									className="h-8 rounded-md border bg-background px-2">
+									<option value="1">1</option>
+									<option value="same">Same as desktop</option>
+								</select>
+							</label>
+						</div>
 						<div className="flex gap-3 px-3 pt-3">
 							{["light", "dark"].map((mode) => (
 								<div key={mode} className="grid gap-1 text-xs">
@@ -193,7 +227,7 @@ function SettingsSection({ rule, isDeleted, onChange, onAddOpposite, onRemove, o
 
 	return (
 		<div className="flex flex-col">
-			<div className="flex flex-col gap-4 p-4">
+			{context && <div className="flex flex-col gap-4 p-4">
 				<div className="flex flex-col gap-2">
 					<p className="text-sm font-medium">Who sees this section</p>
 					<MenuReaders group={group} count={count} isDeleted={isDeleted} isDisabled={place === "web"} onPick={pickGroup} />
@@ -222,9 +256,9 @@ function SettingsSection({ rule, isDeleted, onChange, onAddOpposite, onRemove, o
 						))}
 					</div>
 				</div>
-			</div>
+			</div>}
 			<div className="flex flex-col border-t p-1">
-				{group && (
+				{context && group && (
 					<ButtonSettings icon={SquareSplitVertical} onClick={onAddOpposite}>
 						Add a version for {isExcept ? "them" : "everyone else"}
 					</ButtonSettings>

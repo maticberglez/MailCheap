@@ -58,6 +58,7 @@ export default function EditorRich({
 	onContactFieldsChange = () => {},
 	newsletter = null,
 	sections = null,
+	sectionLayouts = Boolean(sections),
 	actionLink = null,
 	minHeight = MIN_HEIGHT,
 	templateScope = null,
@@ -114,7 +115,7 @@ export default function EditorRich({
 				onPickImage: () => setImagePicker({}),
 				onAddField: () => setIsAddingField(true),
 				contactFields,
-				withSections: Boolean(sections),
+				withSections: sectionLayouts,
 				onCountdown: templateScope ? () => setShowCountdown(true) : null,
 			}),
 			MergeTagSuggestion.configure({ contactFields }),
@@ -184,7 +185,7 @@ export default function EditorRich({
 
 	return (
 		<SectionsContext value={sections}>
-			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} withSections={Boolean(sections)} />}
+			{templateScope && <MenuEditorTemplates editor={editor} scope={templateScope} withSections={sectionLayouts} withAudience={Boolean(sections)} />}
 			<EditorContent editor={editor} className="relative" />
 			<GutterProblems
 				editor={editor}

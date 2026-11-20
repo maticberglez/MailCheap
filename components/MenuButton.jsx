@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { BadgeCheck, CornerDownLeft, Link, Mail, Trash2 } from "lucide-react";
+import { BadgeCheck, CornerDownLeft, Link, Mail, SlidersHorizontal, Trash2 } from "lucide-react";
 import ImageFavicon from "@/components/ImageFavicon";
 import { ButtonFormat } from "@/components/MenuFormat";
 import { ALIGNMENTS } from "@/components/MenuImage";
-import { isButtonLink } from "@/lib/buttons";
+import { BUTTON_DIMENSIONS, isButtonLink, readButtonDimension } from "@/lib/buttons";
 import { findButton } from "@/lib/editor-button";
 import { deleteBlock } from "@/lib/editor-undo-delete";
 import { formatLinkUrl, normalizeUrl } from "@/lib/links";
@@ -18,6 +18,7 @@ import { formatLinkUrl, normalizeUrl } from "@/lib/links";
 // (lib/action-links.js), which its button keeps: the toolbar says what it does instead of where it goes, and has no field.
 export default function MenuButton({ editor, isEditingLink, onEditLink, actionLink = null }) {
 	const menuRef = useRef(null);
+	const [isStyling, setIsStyling] = useState(false);
 	const button = useEditorState({ editor, selector: ({ editor: current }) => readButton(current.state) });
 	const isAction = Boolean(actionLink) && button?.href === actionLink.href;
 	const options = useMemo(
@@ -28,7 +29,7 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 			shift: { padding: 8 },
 			// A link field opened while the toolbar was hidden, as the review step's fix does, takes the focus once it shows.
 			onShow: () => focusField(menuRef.current?.querySelector("input")),
-			onHide: () => onEditLink(false),
+			onHide: () => { onEditLink(false); setIsStyling(false); },
 		}),
 		[onEditLink]
 	);
@@ -118,6 +119,25 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 							<CornerDownLeft />
 						</ButtonFormat>
 					</form>
+				) : isStyling ? (
+					<form className="grid w-64 grid-cols-3 gap-2 p-2" onSubmit={(event) => {
+						event.preventDefault();
+						const fields = new FormData(event.currentTarget);
+						change(Object.fromEntries(Object.keys(BUTTON_DIMENSIONS).map((key) => [key, readButtonDimension(key, fields.get(key))])));
+						setIsStyling(false);
+					}}>
+						{Object.entries(BUTTON_DIMENSIONS).map(([key, { label, min, max }]) => (
+							<label key={key} className="grid gap-1 text-xs">
+								{label}
+								<input name={key} type="number" min={min} max={max} defaultValue={button?.[key] ?? ""} placeholder="Auto"
+									className="h-8 min-w-0 rounded-md border bg-background px-2 text-sm" />
+							</label>
+						))}
+						<div className="col-span-3 flex justify-end gap-2">
+							<ButtonFormat label="Cancel style" onClick={() => { setIsStyling(false); editor.commands.focus(); }}>Cancel</ButtonFormat>
+							<ButtonFormat label="Apply style" type="submit"><CornerDownLeft /></ButtonFormat>
+						</div>
+					</form>
 				) : (
 					<>
 						{ALIGNMENTS.map(({ value, label, icon: Icon }) => (
@@ -127,6 +147,7 @@ export default function MenuButton({ editor, isEditingLink, onEditLink, actionLi
 						))}
 						<span aria-hidden className="mx-0.5 h-5 w-px bg-border" />
 						{isAction ? <LabelActionLink label={actionLink.label} /> : <ButtonLink href={button?.href} onClick={() => onEditLink(true)} />}
+						<ButtonFormat label="Button style" onClick={() => setIsStyling(true)}><SlidersHorizontal /></ButtonFormat>
 						<ButtonFormat label="Delete button" onClick={remove}>
 							<Trash2 />
 						</ButtonFormat>
@@ -170,7 +191,7 @@ function LabelActionLink({ label }) {
 
 function readButton(state) {
 	const found = findButton(state);
-	return found && { href: found.node.attrs.href, align: found.node.attrs.align };
+	return found?.node.attrs ?? null;
 }
 
 function getHost(href) {
